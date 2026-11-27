@@ -22,7 +22,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ## Working rules
 
 - **Design before code.** Each component gets a short spec in `docs/` that the author agrees to before implementation.
-- **Explain non-obvious choices** in code comments or the relevant spec: why, not what.
+- **Resolve non-obvious choices before implementing.** Any choice with a real alternative (model, parameter, data structure, trade-off) is raised with the author and settled in chat first. Code then only records the agreed reason, briefly, in a comment or the relevant spec.
 - **Keep it simple and defensible.** Prefer a model the author can derive on a whiteboard over a cleverer one.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
 - **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
