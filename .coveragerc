@@ -1,0 +1,7 @@
+[run]
+source = src/mm
+omit = src/mm/__main__.py
+
+[report]
+fail_under = 85
+show_missing = True

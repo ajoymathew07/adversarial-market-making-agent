@@ -1,1 +1,11 @@
+# Dev-only tools (not in the Docker image). Exact pins, including transitive dependencies
+# not already in requirements.txt. Regenerate with: pip freeze, minus requirements.txt
+ast_serialize==0.13.1
+coverage==7.17.5
+librt==0.17.0
+mypy==2.4.1
+mypy_extensions==1.2.0
+pathspec==1.1.1
+pytest-cov==7.1.0
 ruff==0.17.6
+typing_extensions==4.16.0

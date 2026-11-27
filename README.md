@@ -40,7 +40,7 @@ make venv && make test-local
 ├── scripts/           repository checks used by CI (`make checks`)
 ├── src/mm/            Python package
 ├── tests/             unit, edge-case and invariant tests
-└── docs/              design specs and AI audit log
+└── docs/              design specs, AI audit log, decision records (`docs/decisions/`)
 ```
 
 ## CI
@@ -51,10 +51,14 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pu
 - Pins: every requirement is `name==version` and the Docker base image has an exact tag (`make checks`)
 - Word count: `SUBMISSION.md` report body stays within 800 words (`make checks`)
 - Lint: `ruff check .` (`make lint`)
+- Type check: `mypy`, strict on `src/` (`make typecheck`)
+- Coverage: at least 85% line coverage on `src/mm` (`make coverage`)
 - Run time: `make run` from a cold Docker cache finishes in under 3 minutes (`make run`)
 - Tests: the pytest suite inside Docker (`make test`)
 - Dependency consistency: `pip check` inside the image
 - Determinism: same seed gives identical output (planned once the simulator exists)
+
+`make verify` runs all the static checks (repository checks, lint, type check, coverage) locally.
 
 ## Architecture
 
