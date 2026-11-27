@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from mm.config import DEFAULT_CONFIG_PATH, build_config, load_config
+from mm.config import DEFAULT_CONFIG_PATH, build_config, load_config, scenario_names
 
 
 def default_raw() -> dict[str, Any]:
@@ -68,6 +68,70 @@ def test_section_that_is_not_a_table_is_rejected_by_name():
     raw["engine"] = 0
     with pytest.raises(ValueError, match="'engine' must be a table"):
         build_config(raw)
+
+
+@pytest.mark.parametrize("name", scenario_names())
+def test_every_scenario_loads(name):
+    assert load_config(scenario=name).market.informed.share >= 0
+
+
+def test_scenario_names_follow_file_order():
+    assert scenario_names() == ("no_informed", "base", "toxic")
+
+
+def test_scenario_override_replaces_only_its_key():
+    raw = default_raw()
+    raw["scenarios"]["calm"] = {"market.true_value.sigma": 0.5}
+    config = build_config(raw, "calm")
+    assert config.market.true_value.sigma == 0.5
+    assert config.market.informed == load_config().market.informed
+
+
+def test_unknown_scenario_is_rejected_by_name():
+    with pytest.raises(ValueError, match="unknown scenario 'toxik'"):
+        load_config(scenario="toxik")
+
+
+@pytest.mark.parametrize("dotted", ["market.informed.shar", "markets.informed.share", "x"])
+def test_scenario_override_of_unknown_key_is_rejected_by_name(dotted):
+    raw = default_raw()
+    raw["scenarios"]["typo"] = {dotted: 0.4}
+    with pytest.raises(ValueError, match=f"unknown key '{dotted}'"):
+        build_config(raw, "typo")
+
+
+def test_scenario_override_with_wrong_type_is_rejected_by_name():
+    raw = default_raw()
+    raw["scenarios"]["typo"] = {"market.informed.share": "0.4"}
+    with pytest.raises(ValueError, match="'market.informed.share' must be a number"):
+        build_config(raw, "typo")
+
+
+def test_scenario_that_is_not_a_table_is_rejected_by_name():
+    raw = default_raw()
+    raw["scenarios"]["bad"] = 0.4
+    with pytest.raises(ValueError, match="'scenarios.bad' must be a table"):
+        build_config(raw, "bad")
+
+
+def test_missing_scenarios_table_is_rejected():
+    raw = default_raw()
+    del raw["scenarios"]
+    with pytest.raises(ValueError, match="'scenarios'"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize("value", [[1], [1, 2, 3], [1, 2.5], 3])
+def test_size_range_must_be_two_integers(value):
+    raw = default_raw()
+    raw["market"]["noise"]["size"] = value
+    with pytest.raises(ValueError, match=r"'market.noise.size' must be \[min, max\]"):
+        build_config(raw)
+
+
+def test_size_range_is_read_into_min_and_max():
+    noise = load_config().market.noise
+    assert (noise.size_min, noise.size_max) == (1, 5)
 
 
 @pytest.mark.parametrize(

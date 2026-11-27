@@ -27,9 +27,11 @@ scenarios.
 
 Arrivals per step are two independent Poisson counts, shuffled into random order.
 
-## Defaults
+## Parameter values
 
-| Parameter | Default |
+Set in `config/default.toml` (`[instrument]`, `[market.*]`); the base values are:
+
+| Parameter | Value |
 |-----------|---------|
 | V0 | 10000 ticks (100.00, tick 0.01) |
 | sigma | 1 tick per step |
@@ -38,6 +40,7 @@ Arrivals per step are two independent Poisson counts, shuffled into random order
 | Informed share / size | 15% / 5–10 lots |
 | Informed lookahead / edge | 10 steps / 1 tick |
 
-Scenarios differ only in informed share: `no_informed` 0%, `base` 15%, `toxic` 40%.
+Scenarios differ only in informed share: `no_informed` 0%, `base` 15%, `toxic` 40%. Each is
+an override table under `[scenarios]` in `config/default.toml`.
 
 The agent never sees V or a taker's kind; only the simulation loop and evaluation read them.
