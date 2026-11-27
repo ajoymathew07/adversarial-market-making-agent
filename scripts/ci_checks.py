@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-REQUIRED_FILES = ["README.md", "SUBMISSION.md", "Dockerfile"]
+REQUIRED_FILES = ["README.md", "SUBMISSION.md", "Dockerfile", "config/default.toml"]
 REQUIRED_DIRS = ["src", "tests"]
 REQUIREMENTS_FILES = ["requirements.txt", "requirements-dev.txt"]
 WORD_LIMIT = 800

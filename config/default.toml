@@ -1,0 +1,8 @@
+# All simulation parameters. Prices are in ticks unless stated.
+
+[instrument]
+tick_size = 0.01
+initial_price = 100.00          # converted to ticks on load
+
+[engine]
+fee_per_lot = 0                 # ticks per lot

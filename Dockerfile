@@ -12,6 +12,7 @@ COPY requirements.txt .
 # so the install fails loudly instead of silently pulling an unpinned version.
 RUN pip install --no-deps -r requirements.txt
 
+COPY config/ config/
 COPY src/ src/
 COPY tests/ tests/
 
