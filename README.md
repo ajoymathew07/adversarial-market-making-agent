@@ -40,7 +40,7 @@ make venv && make test-local
 ├── scripts/           repository checks used by CI (`make checks`)
 ├── src/mm/            Python package
 ├── tests/             unit, edge-case and invariant tests
-└── docs/              design specs, AI audit log, decision records (`docs/decisions/`)
+└── docs/              design specs, decisions, AI audit log
 ```
 
 ## CI

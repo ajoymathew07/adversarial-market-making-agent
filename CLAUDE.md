@@ -27,7 +27,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
 - **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
 - **Log AI mistakes.** When AI-generated code or reasoning turns out wrong, add an entry to `docs/ai_audit_log.md`.
-- **Record decisions.** Every choice settled in chat gets a short record in `docs/decisions/` (template in its README) in the same PR that implements it.
+- **Record decisions.** Every choice settled in chat gets one row in `docs/decisions.md` (decision, why, rejected) in the same PR that implements it.
 
 ## Architecture rules
 
@@ -39,11 +39,10 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ## Layout
 
 ```
-src/mm/         Python package (simulator, agent, evaluation as they get added)
-tests/          pytest suite: unit, edge-case and invariant tests
-docs/           design specs and the AI audit log
-docs/decisions/ decision records, one per settled choice
-scripts/        repository checks run by CI (layout, pins, word count)
+src/mm/        Python package (simulator, agent, evaluation as they get added)
+tests/         pytest suite: unit, edge-case and invariant tests
+docs/          design specs, decisions.md, AI audit log
+scripts/       repository checks run by CI (layout, pins, word count)
 ```
 
 ## Commands
