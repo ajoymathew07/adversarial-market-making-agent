@@ -22,7 +22,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ## Working rules
 
 - **Design before code.** Each component gets a short spec in `docs/` that the author agrees to before implementation.
-- **Resolve non-obvious choices before implementing.** Any choice with a real alternative (model, parameter, data structure, trade-off) is raised with the author and settled in chat first. Code then only records the agreed reason, briefly, in a comment or the relevant spec.
+- **The author confirms every design decision before it is used.** No choice with a real alternative (data representation, model, parameter, interface, tooling) goes into code, this file or `docs/decisions.md` until the author has explicitly confirmed it in chat. A recommendation is not a confirmation. When unsure whether something counts, ask.
 - **Keep it simple and defensible.** Prefer a model the author can derive on a whiteboard over a cleverer one.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
 - **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
@@ -59,7 +59,6 @@ scripts/       repository checks run by CI (layout, pins, word count)
 ## Conventions
 
 - Python 3.13, full type hints (mypy strict on src/), small modules with one responsibility.
-- Prices are integer ticks inside the engine (no float equality on prices); convert only at the edges.
 - Test names describe the behaviour: `test_order_never_fills_beyond_position_limit`.
 
 ## Git and PRs
