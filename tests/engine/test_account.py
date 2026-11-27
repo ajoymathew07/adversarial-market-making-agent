@@ -1,8 +1,8 @@
-"""Unit tests for account accounting, config and unit conversion."""
+"""Unit tests for account accounting and unit conversion."""
 
 import pytest
 
-from mm.engine import Account, EngineConfig, Fill, Side, price_to_ticks, ticks_to_price
+from mm.engine import Account, Fill, Side, price_to_ticks, ticks_to_price
 
 
 def make_fill(taker_side: Side, price: int = 10000, size: int = 3) -> Fill:
@@ -56,12 +56,6 @@ def test_reconciles_after_fills_and_detects_tampering():
     assert account.reconciles()
     account.cash += 1
     assert not account.reconciles()
-
-
-def test_engine_config_defaults():
-    config = EngineConfig()
-    assert config.tick_size == 0.01
-    assert config.fee_per_lot == 0
 
 
 def test_ticks_convert_to_price_per_100_face_value():

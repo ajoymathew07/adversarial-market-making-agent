@@ -1,12 +1,8 @@
 """Order and fill records."""
 
 from dataclasses import dataclass
-from enum import Enum
 
-
-class Side(Enum):
-    BUY = "buy"
-    SELL = "sell"
+from mm.types import Side
 
 
 @dataclass

@@ -2,13 +2,12 @@
 
 from mm.engine.account import Account
 from mm.engine.book import OrderBook
-from mm.engine.config import EngineConfig
-from mm.engine.orders import Fill, Order, Side
+from mm.engine.orders import Fill, Order
 from mm.engine.units import price_to_ticks, ticks_to_price
+from mm.types import Side
 
 __all__ = [
     "Account",
-    "EngineConfig",
     "Fill",
     "Order",
     "OrderBook",

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from mm.engine.orders import Fill, Side
+from mm.engine.orders import Fill
 
 
 @dataclass
@@ -43,7 +43,7 @@ def _signed_size(fill: Fill, as_owner: str) -> int:
     if as_owner == fill.taker_owner:
         side = fill.taker_side
     elif as_owner == fill.maker_owner:
-        side = Side.SELL if fill.taker_side is Side.BUY else Side.BUY
+        side = fill.taker_side.opposite
     else:
         raise ValueError(f"{as_owner!r} is not a party to this fill")
-    return fill.size if side is Side.BUY else -fill.size
+    return side.sign * fill.size

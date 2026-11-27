@@ -7,7 +7,8 @@ prices that have orders. Resting orders are post-only; takers send IOC limit ord
 import bisect
 from collections import deque
 
-from mm.engine.orders import Fill, Order, Side
+from mm.engine.orders import Fill, Order
+from mm.types import Side
 
 
 class OrderBook:
@@ -79,7 +80,7 @@ class OrderBook:
         if size < 1:
             raise ValueError(f"order size must be >= 1, got {size}")
 
-        maker_side = Side.SELL if side is Side.BUY else Side.BUY
+        maker_side = side.opposite
         fills: list[Fill] = []
         remaining = size
         while remaining > 0:
