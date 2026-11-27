@@ -25,6 +25,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 - **Explain non-obvious choices** in code comments or the relevant spec: why, not what.
 - **Keep it simple and defensible.** Prefer a model the author can derive on a whiteboard over a cleverer one.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
+- **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
 - **Log AI mistakes.** When AI-generated code or reasoning turns out wrong, add an entry to `docs/ai_audit_log.md`.
 
 ## Layout
@@ -49,26 +50,29 @@ docs/          design specs and the AI audit log
 
 ## Git and PRs
 
+- **Decide first, then build.** Every design choice is discussed and settled with the author in chat
+  before implementation starts. Open questions are asked in chat, never left in a PR. A PR only
+  carries out decisions the author has already agreed to.
 - One PR per moderate change or feature, branched from `main`. The author reviews and merges; never merge yourself.
 - Branch names: `feat/...`, `fix/...`, `chore/...`, `docs/...`.
-- Commit messages: short imperative subject line, optional body explaining why.
+- Commit messages: short imperative subject line, optional body.
 
 ### PR description template
 
-Write it the way you'd explain the change to a teammate: plain sentences, no hype, no filler words
-like "comprehensive" or "robust", no emoji. Keep it short enough to read in a minute.
+Plain, concise sentences. No hype, no filler words, no emoji.
 
 ```
-## Why
-One or two sentences on the problem this solves or the reason for the change.
+## Summary
+One or two sentences on what this PR adds.
 
-## What
-- The main changes, one bullet each, in plain words.
+## Changes made
+- `path/or/module`: what was added and the function or logic it uses.
 
-## Decisions worth a look
-Anything a reviewer might question: a trade-off made, an alternative rejected and why.
-Write "None" if there aren't any.
+## Testing
+| Test | Status |
+|------|--------|
+| `tests/test_x.py::test_name` | Pass |
 
-## How I checked it
-The commands run and what they showed (tests, `make run`, a manual check).
+## Notes
+Anything the reviewer should know (follow-ups, known limitations). Omit if empty.
 ```
