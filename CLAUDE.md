@@ -22,12 +22,12 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ## Working rules
 
 - **Design before code.** Each component gets a short spec in `docs/` that the author agrees to before implementation.
-- **The author confirms every design decision before it is used.** No choice with a real alternative (data representation, model, parameter, interface, tooling) goes into code, this file or `docs/decisions.md` until the author has explicitly confirmed it in chat. A recommendation is not a confirmation. When unsure whether something counts, ask.
+- **The author confirms every design decision before it is used.** No choice with a real alternative (data representation, model, parameter, interface, tooling) goes into code, this file or `docs/decisions/` until the author has explicitly confirmed it in chat. A recommendation is not a confirmation. When unsure whether something counts, ask.
 - **Keep it simple and defensible.** Prefer a model the author can derive on a whiteboard over a cleverer one.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
 - **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
 - **Log AI mistakes.** When AI-generated code or reasoning turns out wrong, add an entry to `docs/ai_audit_log.md`.
-- **Record decisions.** Every choice settled in chat gets one row in `docs/decisions.md` (decision, why, rejected) in the same PR that implements it.
+- **Record decisions** in `docs/decisions/`, in the same PR that implements them. Small setup choices go as a row in `00-project-setup.md`. Major design decisions (models, market structure, strategy) get their own numbered file (`01-...md`, `02-...md`) with the justification they need.
 
 ## Architecture rules
 
@@ -41,7 +41,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ```
 src/mm/        Python package (simulator, agent, evaluation as they get added)
 tests/         pytest suite: unit, edge-case and invariant tests
-docs/          design specs, decisions.md, AI audit log
+docs/          design specs, decisions/, AI audit log
 scripts/       repository checks run by CI (layout, pins, word count)
 ```
 

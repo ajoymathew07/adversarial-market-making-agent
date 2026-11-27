@@ -1,6 +1,6 @@
-# Decisions
+# 00: Project setup decisions
 
-One line per settled choice: what we chose, why, and what we rejected.
+Small setup choices, grouped in one table. Major design decisions get their own file in this folder.
 
 | # | Decision | Why | Rejected |
 |---|----------|-----|----------|
