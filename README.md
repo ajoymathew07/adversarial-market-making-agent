@@ -37,10 +37,24 @@ make venv && make test-local
 ├── Dockerfile         pinned container definition
 ├── Makefile           run / test entry points
 ├── requirements.txt   exact dependency pins
+├── scripts/           repository checks used by CI (`make checks`)
 ├── src/mm/            Python package
 ├── tests/             unit, edge-case and invariant tests
 └── docs/              design specs and AI audit log
 ```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
+
+- Layout: required files and directories exist (`make checks`)
+- Pins: every requirement is `name==version` and the Docker base image has an exact tag (`make checks`)
+- Word count: `SUBMISSION.md` report body stays within 800 words (`make checks`)
+- Lint: `ruff check .` (`make lint`)
+- Run time: `make run` from a cold Docker cache finishes in under 3 minutes (`make run`)
+- Tests: the pytest suite inside Docker (`make test`)
+- Dependency consistency: `pip check` inside the image
+- Determinism: same seed gives identical output (planned once the simulator exists)
 
 ## Architecture
 

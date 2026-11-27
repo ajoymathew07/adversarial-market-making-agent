@@ -34,6 +34,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 src/mm/        Python package (simulator, agent, evaluation as they get added)
 tests/         pytest suite: unit, edge-case and invariant tests
 docs/          design specs and the AI audit log
+scripts/       repository checks run by CI (layout, pins, word count)
 ```
 
 ## Commands
