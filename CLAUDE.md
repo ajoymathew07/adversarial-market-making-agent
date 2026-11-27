@@ -22,18 +22,27 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 ## Working rules
 
 - **Design before code.** Each component gets a short spec in `docs/` that the author agrees to before implementation.
-- **Resolve non-obvious choices before implementing.** Any choice with a real alternative (model, parameter, data structure, trade-off) is raised with the author and settled in chat first. Code then only records the agreed reason, briefly, in a comment or the relevant spec.
+- **The author confirms every design decision before it is used.** No choice with a real alternative (data representation, model, parameter, interface, tooling) goes into code, this file or `docs/decisions/` until the author has explicitly confirmed it in chat. A recommendation is not a confirmation. When unsure whether something counts, ask.
 - **Keep it simple and defensible.** Prefer a model the author can derive on a whiteboard over a cleverer one.
 - **Determinism.** All randomness goes through an explicitly seeded `numpy.random.Generator`; never use global RNG state.
 - **Orchestration.** The main session handles design discussion and review; implementation and testing go to subagents where practical, and their output is checked before a PR is opened.
 - **Log AI mistakes.** When AI-generated code or reasoning turns out wrong, add an entry to `docs/ai_audit_log.md`.
+- **Record decisions** in `docs/decisions/`, in the same PR that implements them. Small setup choices go as a row in `00-project-setup.md`. Major design decisions (models, market structure, strategy) get their own numbered file (`01-...md`, `02-...md`) with the justification they need.
+
+## Architecture rules
+
+- **Module boundaries:** `mm.engine` (order book, matching), `mm.market` (true-value process, counterparty bots, scenarios), `mm.agent` (quoting strategy), `mm.risk` (order gate, invariant monitor), `mm.eval` (metrics, benchmarks, reports). Modules talk through small typed interfaces; the agent never reaches into engine internals.
+- **Single order gate:** every order the agent sends goes through one function in `mm.risk` that enforces position limits, no self-cross, size/price sanity and order-rate limits. No other path to the engine.
+- **Runtime invariant monitor:** after every simulation step, check PnL reconciliation, position limits, no double fills and an uncrossed book; halt the run on any violation. Runs in every simulation, not only in tests.
+- **Config-driven parameters:** all tunable values live in one typed config object; no magic numbers in logic. Changing a constraint (e.g. position limit, tick size, latency) must be a config change, not a code change.
 
 ## Layout
 
 ```
 src/mm/        Python package (simulator, agent, evaluation as they get added)
 tests/         pytest suite: unit, edge-case and invariant tests
-docs/          design specs and the AI audit log
+docs/          design specs, decisions/, AI audit log
+scripts/       repository checks run by CI (layout, pins, word count)
 ```
 
 ## Commands
@@ -41,11 +50,15 @@ docs/          design specs and the AI audit log
 - `make run`: build the Docker image and run the end-to-end demo
 - `make test`: run the test suite inside Docker
 - `make venv && make test-local`: same tests in a local virtualenv
+- `make verify`: all static checks plus coverage locally (checks, lint, typecheck, coverage)
+- `make typecheck`: mypy (strict on `src/`)
+- `make coverage`: tests with coverage, fails under 85% on `src/mm`
+- `make lint`: ruff
+- `make checks`: repository checks (layout, pins, word count)
 
 ## Conventions
 
-- Python 3.13, type hints on public functions, small modules with one responsibility.
-- Prices are integer ticks inside the engine (no float equality on prices); convert only at the edges.
+- Python 3.13, full type hints (mypy strict on src/), small modules with one responsibility.
 - Test names describe the behaviour: `test_order_never_fills_beyond_position_limit`.
 
 ## Git and PRs

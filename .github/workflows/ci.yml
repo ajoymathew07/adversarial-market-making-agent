@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Same image as the Dockerfile, so checks run on the exact Python the submission uses.
+    # (setup-python has no 3.13.9 build for the current ubuntu-latest runner.)
+    container: python:3.13.9-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # --no-deps: both files pin every package, transitive ones included, so a missing
+      # pin fails the install instead of silently pulling an unpinned version.
+      - name: Install pinned dependencies
+        run: pip install --no-deps -r requirements.txt -r requirements-dev.txt
+      - name: Repository checks (layout, pins, word count)
+        run: python scripts/ci_checks.py all
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy
+      - name: Tests with coverage
+        env:
+          PYTHONPATH: src
+        run: pytest --cov --cov-report=term-missing
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: make run from a cold cache (brief limit 180 s)
+        run: |
+          start=$(date +%s)
+          make run
+          end=$(date +%s)
+          elapsed=$((end - start))
+          echo "make run took ${elapsed}s"
+          if [ "$elapsed" -gt 180 ]; then
+            echo "::error::make run took ${elapsed}s, over the 180 s limit"
+            exit 1
+          fi
+      - name: Tests in Docker
+        run: make test
+      - name: Dependency consistency
+        run: docker run --rm mm-agent pip check
