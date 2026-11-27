@@ -1,7 +1,0 @@
-__pycache__/
-*.pyc
-.venv/
-.pytest_cache/
-.hypothesis/
-.DS_Store
-results/

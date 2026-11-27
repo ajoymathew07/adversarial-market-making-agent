@@ -1,9 +1,0 @@
-# Exact pins, including transitive dependencies. Regenerate with: pip freeze
-hypothesis==6.170.18
-iniconfig==2.3.1
-numpy==2.5.5
-packaging==26.4
-pluggy==1.7.0
-Pygments==2.21.0
-pytest==9.2.0
-sortedcontainers==2.4.0
