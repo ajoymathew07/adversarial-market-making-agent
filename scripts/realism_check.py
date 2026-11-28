@@ -28,6 +28,7 @@ SOURCE_URL = (
 )
 SOURCE_SHA256 = "59fa83f7c425d7f54da49b3858beac42017c5ea584698ebdeef860285322bb38"
 REPORT_NAME = "btcusdt-2026-11-25.md"
+INTERPRETATION_HEADING = "## Interpretation"
 PLOT_NAME = "fill_decay.png"
 
 STEP_SECONDS = 1.0
@@ -296,7 +297,6 @@ def report(sim: Stats, btc: Stats, robust: list[tuple[float, float, float]], met
                 _table(price, head),
                 "## Robustness to the step width (BTCUSDT)",
                 _table(robust_rows, robust_head),
-                "**Interpretation:** TBD",
             ]
         )
         + "\n"
@@ -338,6 +338,15 @@ def parse_seeds(text: str) -> tuple[int, ...]:
         return load_config().evaluation.dev_seeds
     first, last = (int(x) for x in text.split("-"))
     return tuple(range(first, last + 1))
+
+
+def _kept_interpretation(path: Path) -> str:
+    """The hand-written section from INTERPRETATION_HEADING on, kept across reruns."""
+    if not path.exists():
+        return f"\n{INTERPRETATION_HEADING}\n\nTBD\n"
+    text = path.read_text(encoding="utf-8")
+    at = text.find(INTERPRETATION_HEADING)
+    return "\n" + text[at:] if at >= 0 else f"\n{INTERPRETATION_HEADING}\n\nTBD\n"
 
 
 def main() -> None:
@@ -394,7 +403,8 @@ def main() -> None:
         ]
     )
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / REPORT_NAME).write_text(report(sim, btc, robust, meta), encoding="utf-8")
+    path = args.out / REPORT_NAME
+    path.write_text(report(sim, btc, robust, meta) + _kept_interpretation(path), encoding="utf-8")
     plot(sim, btc, args.out / PLOT_NAME)
     print(
         f"Wrote {args.out / REPORT_NAME} and {PLOT_NAME} in {time.perf_counter() - started:.1f} s"
