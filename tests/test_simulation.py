@@ -112,7 +112,10 @@ def test_position_never_exceeds_limit(
     cfg = replace(
         base,
         market=replace(base.market, informed=replace(base.market.informed, share=informed_share)),
-        agent=replace(base.agent, half_spread=half_spread, quote_size=quote_size),
+        agent=replace(
+            base.agent,
+            naive=replace(base.agent.naive, half_spread=half_spread, quote_size=quote_size),
+        ),
         risk=replace(base.risk, position_limit=position_limit),
         n_steps=200,
         seed=seed,

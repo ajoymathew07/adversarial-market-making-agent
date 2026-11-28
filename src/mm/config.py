@@ -107,9 +107,15 @@ class MarketConfig:
 
 
 @dataclass(frozen=True)
-class AgentConfig:
+class NaiveConfig:
     half_spread: int  # ticks from the centre to each quote
     quote_size: int  # lots on each side
+
+
+@dataclass(frozen=True)
+class AgentConfig:
+    type: str  # registry name of the agent that runs by default (see mm.agent.registry)
+    naive: NaiveConfig
 
 
 @dataclass(frozen=True)
@@ -251,9 +257,13 @@ def _market(table: "_Table") -> MarketConfig:
 
 
 def _agent(table: "_Table") -> AgentConfig:
+    naive = table.get_table("naive")
     return AgentConfig(
-        half_spread=table.get_int("half_spread"),
-        quote_size=table.get_int("quote_size"),
+        type=table.get_str("type"),
+        naive=NaiveConfig(
+            half_spread=naive.get_int("half_spread"),
+            quote_size=naive.get_int("quote_size"),
+        ),
     )
 
 
@@ -302,6 +312,12 @@ class _Table:
         if not _is_int(value):
             raise ConfigError(f"{self._full(key)!r} must be an integer, got {value!r}")
         return int(value)
+
+    def get_str(self, key: str) -> str:
+        value = self._get(key)
+        if not isinstance(value, str):
+            raise ConfigError(f"{self._full(key)!r} must be a string, got {value!r}")
+        return value
 
     def get_float(self, key: str) -> float:
         value = self._get(key)

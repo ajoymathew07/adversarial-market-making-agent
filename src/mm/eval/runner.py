@@ -1,4 +1,4 @@
-"""Run the agent over scenarios x seeds and collect per-episode metrics."""
+"""Run one agent over scenarios x seeds and collect per-episode metrics."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -11,6 +11,7 @@ from mm.simulation import EpisodeResult, run_episode
 
 @dataclass(frozen=True)
 class ScenarioResult:
+    agent: str
     scenario: str
     seeds: tuple[int, ...]
     metrics: list[EpisodeMetrics]  # one per seed, in seed order
@@ -23,13 +24,16 @@ def evaluate(
     seeds: Sequence[int],
     n_steps: int,
     config_path: Path | None = None,
+    agent: str | None = None,
 ) -> list[ScenarioResult]:
-    """Run every scenario of the config file on every seed, with n_steps per episode."""
+    """Run one agent (default: the config's [agent] type) on every scenario and seed."""
     if not seeds:
         raise ValueError("at least one seed is required")
     results = []
     for name in scenarios:
         base = replace(load_config(config_path, scenario=name), n_steps=n_steps)
+        agent_name = agent or base.agent.type
+        base = replace(base, agent=replace(base.agent, type=agent_name))
         configs = [replace(base, seed=seed) for seed in seeds]
         episodes = [run_episode(config) for config in configs]
         metrics = [
@@ -42,5 +46,7 @@ def evaluate(
             )
             for episode, config in zip(episodes, configs, strict=True)
         ]
-        results.append(ScenarioResult(name, tuple(seeds), metrics, episodes[0], configs[0]))
+        results.append(
+            ScenarioResult(agent_name, name, tuple(seeds), metrics, episodes[0], configs[0])
+        )
     return results

@@ -26,6 +26,9 @@ size = [5, 10]
 fee_per_lot = 0                 # ticks per lot
 
 [agent]
+type = "naive"                  # which agent runs by default
+
+[agent.naive]
 half_spread = 2                 # ticks
 quote_size = 5                  # lots
 
