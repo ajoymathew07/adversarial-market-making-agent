@@ -3,6 +3,7 @@
 from collections.abc import Callable
 
 from mm.agent.interface import Agent
+from mm.agent.kalman import KalmanMarketMaker
 from mm.agent.naive import NaiveMarketMaker
 from mm.agent.skew import InventorySkewMarketMaker
 from mm.config import AgentConfig, ConfigError
@@ -10,6 +11,8 @@ from mm.config import AgentConfig, ConfigError
 _FACTORIES: dict[str, Callable[[AgentConfig], Agent]] = {
     "naive": lambda config: NaiveMarketMaker(config.naive),
     "skew": lambda config: InventorySkewMarketMaker(config.skew),
+    # v2 shares v1's [agent.skew] quoting settings; only its fair value differs.
+    "kalman": lambda config: KalmanMarketMaker(config.skew, config.kalman),
 }
 AGENT_NAMES: tuple[str, ...] = tuple(_FACTORIES)
 

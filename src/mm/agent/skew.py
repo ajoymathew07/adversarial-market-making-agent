@@ -26,10 +26,15 @@ class InventorySkewMarketMaker:
 
 
 def skew_ticks(position: int, skew_per_lot: float) -> int:
-    """position * skew_per_lot rounded to the nearest tick, halves away from zero.
+    """position * skew_per_lot rounded to the nearest tick, halves away from zero."""
+    return round_half_away(position * skew_per_lot)
+
+
+def round_half_away(x: float) -> int:
+    """x rounded to the nearest integer, halves away from zero.
 
     Rounding the magnitude keeps a long and a short of the same size mirror images
     (+0.5 -> +1, -0.5 -> -1), unlike Python's round(), which sends halves to the even tick.
+    For a positive price this is the same as rounding halves up.
     """
-    shift = position * skew_per_lot
-    return int(math.copysign(math.floor(abs(shift) + 0.5), shift))
+    return int(math.copysign(math.floor(abs(x) + 0.5), x))
