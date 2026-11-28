@@ -46,3 +46,7 @@ the agent would have to estimate live.
 toxic, and it has the best worst-case Sharpe across the two (0.31). γ = 0.01 was best in toxic
 alone but slightly negative in base; γ ≥ 0.02 skews so far that spread capture collapses.
 Held-out seeds were run once, after the choice (`docs/results/v1-skew/heldout/`).
+
+Later note (07): σ and τ only ever mattered through the product γσ²τ, which was tuned, so the
+config now holds one parameter, `skew_per_lot = 0.05`, and no assumption about the market's σ.
+Results are byte-identical.

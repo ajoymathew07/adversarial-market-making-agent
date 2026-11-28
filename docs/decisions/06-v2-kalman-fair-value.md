@@ -28,21 +28,31 @@ as information.
 
 ## Assumptions
 
-σ, λ, s̄, E[s²] and k are the agent's own (`[agent.kalman]`), set to the market's model values.
-Robustness on dev seeds: with k or λ at 0.5× or 1.5× the market's, mean final PnL stays above
-v1's except λ × 0.5 in base (`docs/results/v2-kalman/dev.md`). gain_scale = 1 had the lowest
-fair-value error and the best or a tied PnL in a 0.5/1/2 check; the config keeps 1.
+σ, λ, s̄, E[s²] and k are the agent's own (`[agent.kalman]`). They were first set to the
+market's model values, which was a leak; they are now estimated on dev seeds (07,
+`docs/results/calibration.md`). gain_scale = 1 is kept; `docs/results/v2-kalman/dev.md` has the
+0.5/1/2 check and k, λ at 0.5× and 1.5× of the calibrated values.
+
+Start: fv = the opening price with P = 0. This is a choice: the opening price is public (like a
+published valuation), so the agent starts certain of V₀; uncertainty then grows by σ̂² per step.
 
 ## Theory vs measurement
 
-Constant symmetric quotes give κ ≈ 0.47 ticks per net lot and error std 1.70 ticks. Measured dev
-RMSE: 2.13 (base), 1.93 (toxic). The model leaves out informed flow, the rounding of the centre
+With the market's values, constant symmetric quotes give κ ≈ 0.47 ticks per net lot and error std
+1.70 ticks; measured dev RMSE was 2.13 (base), 1.93 (toxic). With the calibrated values: κ ≈ 0.33,
+predicted error std 2.03 ticks. The model leaves out informed flow, the rounding of the centre
 and that n reflects last step's value (the pre-update std is 1.97); the gap is not split further.
 
 ## Held-out (once, gain_scale = 1)
 
-v2 − v1 final PnL: +5.20 (base), +11.13 (toxic), −2.48 (no_informed), all significant
-(`docs/results/v2-kalman/heldout/report.md`).
+Calibrated (`docs/results/v2-kalman/heldout-calibrated/`), mean final PnL v1 → v2: 0.45 → 4.28
+(base), 1.83 → 13.62 (toxic), 3.01 → −1.97 (no_informed), all significant. The first run with the
+market's values (superseded, `heldout/`) gave v2 5.65, 12.96 and 0.53.
+
+On seed 1021 the calibrated filter locks: at the +50 limit the gate removes the bid, the ask sits
+below fv, so its modelled fill probability is capped at 1 with zero slope; H = 0, the gain is 0
+and fv stops moving (60% of the episode at the limit, fair-value RMSE 29 ticks). Dev seeds 28
+(base) and 10 (toxic) show the same. Not fixed here.
 
 ## Not covered
 
