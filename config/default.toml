@@ -58,6 +58,12 @@ mean_size_sq = 16.44            # average of fill size squared, lots^2
 k = 0.38                        # fills at distance d from the centre fall as exp(-k * d)
 gain_scale = 1.0                # 1 = the Kalman gain; used only for the sensitivity check
 
+[agent.toxicity]                # v3: widen both sides when the agent's own fills go against it
+markout_horizon = 10            # tau, steps; placeholder until make sweep-toxicity
+widen_per_tick = 1.0            # c, half-spread ticks per tick of toxicity; placeholder
+ewma_halflife = 50.0            # lots of matured fills; a choice, not tuned (v5 searches it)
+max_half_spread = 8             # ticks; a choice, not tuned
+
 [agent.calibration]             # quotes at random distances so make calibrate can fit the fill rate
 distances = [1, 5]              # ticks from its centre (v1's skewed centre), uniform per side per step
 rng_stream = 1                  # own RNG: PCG64([episode seed, rng_stream]), never the market's

@@ -189,6 +189,24 @@ class KalmanConfig:
 
 
 @dataclass(frozen=True)
+class ToxicityConfig:
+    """The v3 agent's spread widening on its own fills' markouts (see mm.agent.toxicity)."""
+
+    markout_horizon: int  # τ: steps after a fill at which it is marked against the agent's fv
+    widen_per_tick: float  # c: half-spread ticks added per tick of toxicity score
+    ewma_halflife: float  # lots of matured fills after which an old markout's weight halves
+    max_half_spread: int  # ticks; the widened half-spread is clipped to this
+
+    def __post_init__(self) -> None:
+        if self.markout_horizon < 1:
+            raise ValueError("toxicity markout_horizon must be >= 1")
+        if self.widen_per_tick < 0:
+            raise ValueError("toxicity widen_per_tick must be >= 0")
+        if self.ewma_halflife <= 0:
+            raise ValueError("toxicity ewma_halflife must be > 0")
+
+
+@dataclass(frozen=True)
 class CalibrationAgentConfig:
     """The calibration agent's design choices (see mm.agent.calibration)."""
 
@@ -207,7 +225,12 @@ class AgentConfig:
     naive: NaiveConfig
     skew: SkewConfig
     kalman: KalmanConfig
+    toxicity: ToxicityConfig
     calibration: CalibrationAgentConfig
+
+    def __post_init__(self) -> None:
+        if self.toxicity.max_half_spread < self.skew.half_spread:
+            raise ValueError("toxicity max_half_spread must be >= skew half_spread")
 
 
 @dataclass(frozen=True)
@@ -381,6 +404,7 @@ def _agent(table: "_Table") -> AgentConfig:
     naive = table.get_table("naive")
     skew = table.get_table("skew")
     kalman = table.get_table("kalman")
+    toxicity = table.get_table("toxicity")
     calibration = table.get_table("calibration")
     min_distance, max_distance = calibration.get_int_pair("distances")
     return AgentConfig(
@@ -401,6 +425,12 @@ def _agent(table: "_Table") -> AgentConfig:
             mean_size_sq=kalman.get_float("mean_size_sq"),
             k=kalman.get_float("k"),
             gain_scale=kalman.get_float("gain_scale"),
+        ),
+        toxicity=ToxicityConfig(
+            markout_horizon=toxicity.get_int("markout_horizon"),
+            widen_per_tick=toxicity.get_float("widen_per_tick"),
+            ewma_halflife=toxicity.get_float("ewma_halflife"),
+            max_half_spread=toxicity.get_int("max_half_spread"),
         ),
         calibration=CalibrationAgentConfig(
             min_distance=min_distance,

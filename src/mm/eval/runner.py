@@ -1,9 +1,10 @@
 """Run one agent over scenarios x seeds and collect per-episode metrics."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from mm.agent import Agent
 from mm.config import AgentConfig, SimConfig, load_config
 from mm.eval.metrics import EpisodeMetrics, episode_metrics
 from mm.simulation import EpisodeResult, run_episode
@@ -26,10 +27,13 @@ def evaluate(
     config_path: Path | None = None,
     agent: str | None = None,
     agent_config: AgentConfig | None = None,
+    agent_factory: Callable[[SimConfig], Agent] | None = None,
 ) -> list[ScenarioResult]:
     """Run one agent (default: the config's [agent] type) on every scenario and seed.
 
     `agent_config` replaces the file's [agent] section, e.g. to sweep a parameter.
+    `agent_factory`, if given, builds each episode's agent instead of the registry, e.g. to wrap
+    it and record its internal state; episodes run in scenario-then-seed order.
     """
     if not seeds:
         raise ValueError("at least one seed is required")
@@ -41,7 +45,10 @@ def evaluate(
         agent_name = agent or base.agent.type
         base = replace(base, agent=replace(base.agent, type=agent_name))
         configs = [replace(base, seed=seed) for seed in seeds]
-        episodes = [run_episode(config) for config in configs]
+        episodes = [
+            run_episode(config, agent_factory(config) if agent_factory else None)
+            for config in configs
+        ]
         metrics = [
             episode_metrics(
                 episode,

@@ -6,6 +6,7 @@ from mm.agent.kalman import KalmanMarketMaker
 from mm.agent.naive import NaiveMarketMaker
 from mm.agent.registry import AGENT_NAMES, make_agent
 from mm.agent.skew import InventorySkewMarketMaker
+from mm.agent.toxicity import ToxicityMarketMaker
 
 __all__ = [
     "AGENT_NAMES",
@@ -17,6 +18,7 @@ __all__ = [
     "Observation",
     "OwnFill",
     "Quote",
+    "ToxicityMarketMaker",
     "Trade",
     "make_agent",
 ]
