@@ -12,6 +12,9 @@ from mm.types import Side
 
 TakerKind = Literal["noise", "informed"]
 
+# Log-scale std of the lognormal tolerance; its mu is set so the mean stays 1/k.
+LOGNORMAL_SIGMA = 1.0
+
 
 @dataclass(frozen=True)
 class TakerIntent:
@@ -44,11 +47,28 @@ def generate_intents(
     return [intents[i] for i in order]
 
 
+def draw_tolerance(shape: str, k: float, rng: np.random.Generator) -> float:
+    """How many ticks past the true value a noise taker accepts; the mean is 1/k for every shape.
+
+    exponential: P(accept at distance d) = exp(-k * d), the model the agents assume.
+    uniform: 1 - d * k / 2 up to a hard cutoff at 2/k.
+    lognormal: a heavy upper tail, so a few takers accept very bad prices.
+    """
+    mean = 1.0 / k
+    if shape == "exponential":
+        return float(rng.exponential(mean))
+    if shape == "uniform":
+        return float(rng.uniform(0.0, 2.0 * mean))
+    if shape == "lognormal":
+        mu = math.log(mean) - LOGNORMAL_SIGMA**2 / 2
+        return float(rng.lognormal(mu, LOGNORMAL_SIGMA))
+    raise ValueError(f"unknown tolerance shape {shape!r}")
+
+
 def _noise_intent(value: float, config: MarketConfig, rng: np.random.Generator) -> TakerIntent:
-    # Exponential tolerance makes P(buyer accepts an ask d ticks above value) = exp(-k * d).
     side = Side.BUY if rng.random() < 0.5 else Side.SELL
     size = int(rng.integers(config.noise.size_min, config.noise.size_max + 1))
-    tolerance = float(rng.exponential(1.0 / config.noise.tolerance_rate))
+    tolerance = draw_tolerance(config.noise.tolerance, config.noise.tolerance_rate, rng)
     if side is Side.BUY:
         limit = math.floor(value + tolerance)
     else:
