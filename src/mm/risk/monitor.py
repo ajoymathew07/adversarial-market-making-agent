@@ -33,7 +33,7 @@ class InvariantMonitor:
             )
         if abs(account.position) > self._position_limit:
             raise InvariantViolation(
-                f"position {account.position} exceeds limit {self._position_limit}"
+                f"{self._owner} position {account.position} exceeds limit {self._position_limit}"
             )
         if not account.reconciles():
             raise InvariantViolation("position and cash do not reconcile with recorded fills")
