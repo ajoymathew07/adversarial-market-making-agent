@@ -12,7 +12,7 @@ class GateEvent:
     """A side that the gate rejected or clipped."""
 
     side: Side
-    rule: str  # "size", "price_band", "self_cross" or "position_clip"
+    rule: str  # "size", "price_band", "self_cross", "cross_book" or "position_clip"
     detail: str
 
 
@@ -23,7 +23,12 @@ class GateResult:
 
 
 def apply_gate(
-    quote: Quote, position: int, last_trade_price: int, config: RiskConfig
+    quote: Quote,
+    position: int,
+    last_trade_price: int,
+    config: RiskConfig,
+    book_bid: int | None = None,
+    book_ask: int | None = None,
 ) -> GateResult:
     """Return the accepted quote and an event for every rejected or clipped side.
 
@@ -31,7 +36,10 @@ def apply_gate(
     1. size: a side with size < 1 or size > max_order_size is rejected.
     2. price_band: a side with |price - last_trade_price| > max_quote_distance is rejected.
     3. self_cross: if both sides remain and bid >= ask, both are rejected.
-    4. position_clip: bid size is clipped to position_limit - position and ask size to
+    4. cross_book: a bid >= book_ask or an ask <= book_bid is rejected. book_bid and book_ask
+       are the best prices resting from other makers (None: no such order), so a quote never
+       trades against another maker: resting orders are post-only.
+    5. position_clip: bid size is clipped to position_limit - position and ask size to
        position_limit + position, so even a complete fill keeps |position| <= limit.
        A side clipped to 0 is dropped.
     A rejected side is returned with price None and size 0. `fair_value` passes through
@@ -46,6 +54,13 @@ def apply_gate(
         events.append(GateEvent(Side.BUY, "self_cross", detail))
         events.append(GateEvent(Side.SELL, "self_cross", detail))
         bid = ask = None
+
+    if bid is not None and book_ask is not None and bid[0] >= book_ask:
+        events.append(GateEvent(Side.BUY, "cross_book", f"bid {bid[0]} >= book ask {book_ask}"))
+        bid = None
+    if ask is not None and book_bid is not None and ask[0] <= book_bid:
+        events.append(GateEvent(Side.SELL, "cross_book", f"ask {ask[0]} <= book bid {book_bid}"))
+        ask = None
 
     bid = _clip(Side.BUY, bid, config.position_limit - position, events)
     ask = _clip(Side.SELL, ask, config.position_limit + position, events)
