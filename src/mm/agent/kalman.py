@@ -9,12 +9,14 @@ Model (the agent's own estimates, `[agent.kalman]`, from `make calibrate` on dev
     signal       n = taker-buy lots − taker-sell lots against us in the previous step
                    = lots we sold − lots we bought
     noise takers Poisson(λ) per step, buy or sell with prob 1/2, size with mean s̄ and E[s²];
-                 a buyer lifts our ask with p_buy = min(1, exp(−k(ask − V))),
-                 a seller hits our bid with p_sell = min(1, exp(−k(V − bid))).
-So for the quotes that actually rested:
-    E[n]   = h(V) = (λ/2) s̄ (p_buy − p_sell)
-    dh/dV  = H    = (λ/2) s̄ k (p_buy·[p_buy<1] + p_sell·[p_sell<1])
-    Var[n] = R    = (λ/2) E[s²] (p_buy + p_sell)                 compound Poisson
+                 buyers lift our ask at intensity buy_rate = exp(−k(ask − V)) and sellers hit
+                 our bid at sell_rate = exp(−k(V − bid)), the Avellaneda–Stoikov arrival
+                 intensity λ(δ) = A·exp(−kδ). It is a rate, not a probability, so it is not
+                 capped at 1: a quote through V gets more than λ/2 takers per step.
+So for the quotes that actually rested (a missing side has rate 0):
+    E[n]   = h(V) = (λ/2) s̄ (buy_rate − sell_rate)
+    dh/dV  = H    = (λ/2) s̄ k (buy_rate + sell_rate)
+    Var[n] = R    = (λ/2) E[s²] (buy_rate + sell_rate)          compound Poisson
 Linearising h around the estimate fv gives one (extended) Kalman step:
     predict  P ← P + σ²
     gain     K = P·H / (H²·P + R)
@@ -31,7 +33,7 @@ from mm.agent.interface import Observation, OwnFill, Quote
 from mm.agent.skew import round_half_away, skew_ticks
 from mm.config import KalmanConfig, SkewConfig
 
-# Keeps the gain finite when both fill probabilities are tiny (quotes far from fv).
+# Keeps the gain finite when both arrival rates are tiny (quotes far from fv).
 MIN_FLOW_VARIANCE = 1e-9
 
 
@@ -47,17 +49,19 @@ class FlowExpectation:
 def expected_flow(
     config: KalmanConfig, fv: float, bid: int | None, ask: int | None
 ) -> FlowExpectation:
-    """h, H and R for the quotes that rested; a missing side contributes nothing."""
+    """h, H and R for the quotes that rested; a missing side contributes nothing.
+
+    The rates are uncapped, so H > 0 whenever a side rests, even a quote through fv (as when
+    the position limit removes one side and the skew pushes the other past fv).
+    """
     k = config.k
-    p_buy = min(1.0, math.exp(-k * (ask - fv))) if ask is not None else 0.0
-    p_sell = min(1.0, math.exp(-k * (fv - bid))) if bid is not None else 0.0
-    # A capped probability (quote through fv) does not change with fv, so its slope is 0.
-    sensitive = (p_buy if p_buy < 1 else 0.0) + (p_sell if p_sell < 1 else 0.0)
+    buy_rate = math.exp(-k * (ask - fv)) if ask is not None else 0.0
+    sell_rate = math.exp(-k * (fv - bid)) if bid is not None else 0.0
     half_rate = config.noise_rate / 2
     return FlowExpectation(
-        mean=half_rate * config.mean_size * (p_buy - p_sell),
-        slope=half_rate * config.mean_size * k * sensitive,
-        variance=max(half_rate * config.mean_size_sq * (p_buy + p_sell), MIN_FLOW_VARIANCE),
+        mean=half_rate * config.mean_size * (buy_rate - sell_rate),
+        slope=half_rate * config.mean_size * k * (buy_rate + sell_rate),
+        variance=max(half_rate * config.mean_size_sq * (buy_rate + sell_rate), MIN_FLOW_VARIANCE),
     )
 
 

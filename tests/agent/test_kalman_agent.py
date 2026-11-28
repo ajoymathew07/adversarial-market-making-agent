@@ -2,6 +2,7 @@ import inspect
 import math
 import tomllib
 from dataclasses import replace
+from itertools import pairwise
 
 import pytest
 
@@ -120,10 +121,39 @@ def test_missing_side_contributes_nothing():
     assert only_bid.mean == pytest.approx(-only_ask.mean)
 
 
-def test_a_quote_through_fair_value_is_capped_and_has_no_slope():
-    flow = expected_flow(KALMAN, CENTRE, None, CENTRE - 1)  # ask below fv: every buyer takes it
-    assert flow.mean == pytest.approx(KALMAN.noise_rate / 2 * KALMAN.mean_size)
-    assert flow.slope == 0
+def test_a_one_sided_ask_below_fair_value_still_has_slope_and_moves_fair_value():
+    # At the long limit the gate drops the bid and the skew pushes the ask below fv. The rate is
+    # an uncapped intensity, so it exceeds λ/2 there and still responds to fv.
+    ask = CENTRE - 1
+    flow = expected_flow(KALMAN, CENTRE, None, ask)
+    rate = math.exp(KALMAN.k)
+    assert rate > 1
+    assert flow.mean == pytest.approx(KALMAN.noise_rate / 2 * KALMAN.mean_size * rate)
+    assert flow.slope == pytest.approx(KALMAN.k * flow.mean)
+    assert flow.slope > 0
+    fv = warmed_filter()
+    fv.update(0, None, ask)  # fewer taker buys than expected: fv falls
+    assert fv.value < CENTRE
+
+
+def test_agent_held_at_the_position_limit_keeps_updating_and_leaves_it():
+    # Regression for the filter lock: a 10-lot limit and strong skew (dev seed 7, toxic) push the
+    # agent to the limit with its only quote through fv. With a capped probability H was 0 there,
+    # fv froze for 476 of 500 steps and the agent sat at the limit for 482.
+    config = load_config(scenario="toxic")
+    agent = replace(config.agent, type="kalman", skew=replace(config.agent.skew, skew_per_lot=0.3))
+    config = replace(
+        config, n_steps=500, seed=7, agent=agent, risk=replace(config.risk, position_limit=10)
+    )
+    steps = run_episode(config).steps
+    at_limit = sum(abs(s.position) >= 10 for s in steps)
+    assert at_limit > 0  # the scenario does reach the limit
+    assert at_limit < 50
+    longest_frozen = frozen = 0  # consecutive steps where fv did not change
+    for before, after in pairwise(steps):
+        frozen = frozen + 1 if after.fair_value == before.fair_value else 0
+        longest_frozen = max(longest_frozen, frozen)
+    assert longest_frozen < 20
 
 
 def test_far_quotes_keep_the_variance_above_the_floor():
