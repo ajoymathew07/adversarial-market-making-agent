@@ -304,6 +304,35 @@ class FinalConfig:
 
 
 @dataclass(frozen=True)
+class CompetitionConfig:
+    """The v6 agent's volume-share undercut (see mm.agent.competition)."""
+
+    share_halflife: float  # steps after which an old observation's weight in the share halves
+    undercut_per_share: float  # d: base half-spread ticks removed per unit of (1 - share)
+    min_half_spread: int  # ticks; the effective base never goes below this
+
+    def __post_init__(self) -> None:
+        if self.share_halflife <= 0:
+            raise ValueError("competitive share_halflife must be > 0")
+        if self.undercut_per_share < 0:
+            raise ValueError("competitive undercut_per_share must be >= 0")
+        if self.min_half_spread < 1:
+            raise ValueError("competitive min_half_spread must be >= 1")
+
+
+@dataclass(frozen=True)
+class CompetitiveConfig:
+    """Every knob of the v6 agent: v5's (`final`) plus the volume-share undercut."""
+
+    final: FinalConfig
+    competition: CompetitionConfig
+
+    def __post_init__(self) -> None:
+        if self.competition.min_half_spread > self.final.base_half_spread:
+            raise ValueError("competitive min_half_spread must be <= base_half_spread")
+
+
+@dataclass(frozen=True)
 class CalibrationAgentConfig:
     """The calibration agent's design choices (see mm.agent.calibration)."""
 
@@ -326,6 +355,7 @@ class AgentConfig:
     toxicity: ToxicityConfig
     adaptive: AdaptiveConfig
     final: FinalConfig
+    competitive: CompetitiveConfig
     calibration: CalibrationAgentConfig
 
 
@@ -504,6 +534,7 @@ def _agent(table: "_Table") -> AgentConfig:
     toxicity = table.get_table("toxicity")
     adaptive = table.get_table("adaptive")
     final = table.get_table("final")
+    competitive = table.get_table("competitive")
     calibration = table.get_table("calibration")
     min_distance, max_distance = calibration.get_int_pair("distances")
     return AgentConfig(
@@ -541,24 +572,37 @@ def _agent(table: "_Table") -> AgentConfig:
             max_scale=adaptive.get_float("max_scale"),
             max_half_spread=adaptive.get_int("max_half_spread"),
         ),
-        final=FinalConfig(
-            base_half_spread=final.get_int("base_half_spread"),
-            skew_per_lot=final.get_float("skew_per_lot"),
-            quote_size=final.get_int("quote_size"),
-            uncertainty_weight=final.get_float("uncertainty_weight"),
-            intensity_halflife=final.get_float("intensity_halflife"),
-            min_scale=final.get_float("min_scale"),
-            max_scale=final.get_float("max_scale"),
-            max_half_spread=final.get_int("max_half_spread"),
-            widen_per_tick=final.get_float("widen_per_tick"),
-            markout_horizon=final.get_int("markout_horizon"),
-            ewma_halflife=final.get_float("ewma_halflife"),
+        final=_final(final),
+        competitive=CompetitiveConfig(
+            final=_final(competitive),
+            competition=CompetitionConfig(
+                share_halflife=competitive.get_float("share_halflife"),
+                undercut_per_share=competitive.get_float("undercut_per_share"),
+                min_half_spread=competitive.get_int("min_half_spread"),
+            ),
         ),
         calibration=CalibrationAgentConfig(
             min_distance=min_distance,
             max_distance=max_distance,
             rng_stream=calibration.get_int("rng_stream"),
         ),
+    )
+
+
+def _final(table: "_Table") -> FinalConfig:
+    """v5's knobs, read from [agent.final] or from [agent.competitive], which repeats them."""
+    return FinalConfig(
+        base_half_spread=table.get_int("base_half_spread"),
+        skew_per_lot=table.get_float("skew_per_lot"),
+        quote_size=table.get_int("quote_size"),
+        uncertainty_weight=table.get_float("uncertainty_weight"),
+        intensity_halflife=table.get_float("intensity_halflife"),
+        min_scale=table.get_float("min_scale"),
+        max_scale=table.get_float("max_scale"),
+        max_half_spread=table.get_int("max_half_spread"),
+        widen_per_tick=table.get_float("widen_per_tick"),
+        markout_horizon=table.get_int("markout_horizon"),
+        ewma_halflife=table.get_float("ewma_halflife"),
     )
 
 

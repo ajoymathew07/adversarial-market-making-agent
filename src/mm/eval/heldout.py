@@ -1,4 +1,4 @@
-"""Side-by-side held-out tables shared by the v4 and v5 experiment scripts.
+"""Side-by-side held-out tables shared by the v4, v5 and v6 experiment scripts.
 
 One column per agent, plain values (never differences). A column with a baseline gets ✔ on a
 metric when the per-seed difference from that baseline, on identical markets, has a 95% CI
@@ -17,7 +17,7 @@ from mm.eval.stats import Estimate, bootstrap_ci
 
 INTERPRETATION_HEADING = "## Interpretation"
 # Per-seed values the recorder (not EpisodeMetrics) provides.
-RECORDED = ("half_spread", "intensity")
+RECORDED = ("half_spread", "intensity", "share", "effective_base")
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,10 @@ def per_seed(run: Run, key: str) -> list[float]:
         return recorder.mean_half_spread()
     if key == "intensity":
         return recorder.mean_intensity()
+    if key == "share":
+        return recorder.mean_share()
+    if key == "effective_base":
+        return recorder.mean_effective_base()
     return [m.as_row()[key] for m in result.metrics]
 
 

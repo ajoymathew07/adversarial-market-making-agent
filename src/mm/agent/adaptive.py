@@ -18,16 +18,27 @@ Two optional features, both computed from the agent's own observations only:
    a = 0 gives the control's fixed base spread. T is v3's toxicity score (mm.agent.toxicity),
    included only when a ToxicityConfig is given (the v5 `final` agent); c = its widen_per_tick.
 
+3. Competitive base (v6 `competitive`, optional). With a CompetitionConfig, `base` above is
+   replaced each quote by mm.agent.competition's effective base, narrowed when the agent's
+   share of public traded volume falls.
+
 Quotes: reservation r = round(fv) − round(q · skew_per_lot), bid/ask = r ∓ half_spread.
 """
 
 import math
 
+from mm.agent.competition import VolumeShare, competitive_base
 from mm.agent.interface import Observation, Quote
 from mm.agent.kalman import KalmanFairValue, expected_flow, net_taker_buys
 from mm.agent.skew import round_half_away, skew_ticks
 from mm.agent.toxicity import ToxicityScore
-from mm.config import AdaptiveConfig, KalmanConfig, SkewConfig, ToxicityConfig
+from mm.config import (
+    AdaptiveConfig,
+    CompetitionConfig,
+    KalmanConfig,
+    SkewConfig,
+    ToxicityConfig,
+)
 
 
 class FlowIntensity:
@@ -61,10 +72,16 @@ class FlowIntensity:
 
 
 def uncertainty_half_spread(
-    config: AdaptiveConfig, variance: float, toxicity_widening: float = 0.0
+    config: AdaptiveConfig,
+    variance: float,
+    toxicity_widening: float = 0.0,
+    base: int | None = None,
 ) -> int:
-    """round_half_away(base + a·√P + extra), clipped to [base_half_spread, max_half_spread]."""
-    base = config.base_half_spread
+    """round_half_away(base + a·√P + extra), clipped to [base, max_half_spread].
+
+    `base` defaults to config.base_half_spread; v6 passes its effective base instead.
+    """
+    base = config.base_half_spread if base is None else base
     wanted = round_half_away(
         base + config.uncertainty_weight * math.sqrt(variance) + toxicity_widening
     )
@@ -76,6 +93,7 @@ class AdaptiveMarketMaker:
 
     `skew` supplies skew_per_lot and quote_size only; the half-spread comes from `adaptive`.
     `toxicity`, if given, adds v3's c·T to the half-spread (the v5 `final` agent).
+    `competition`, if given, narrows the base with the volume share (the v6 `competitive` agent).
     """
 
     def __init__(
@@ -84,11 +102,13 @@ class AdaptiveMarketMaker:
         kalman: KalmanConfig,
         adaptive: AdaptiveConfig,
         toxicity: ToxicityConfig | None = None,
+        competition: CompetitionConfig | None = None,
     ) -> None:
         self._skew = skew
         self._kalman = kalman
         self._config = adaptive
         self._toxicity_config = toxicity
+        self._competition = competition
         self._started = False
         self._reset(0.0)
 
@@ -97,11 +117,23 @@ class AdaptiveMarketMaker:
         self._intensity = FlowIntensity(self._config)
         self._toxicity = ToxicityScore(self._toxicity_config) if self._toxicity_config else None
         self._half_spread = self._config.base_half_spread
+        self._effective_base = self._config.base_half_spread
+        self._share = VolumeShare(self._competition.share_halflife) if self._competition else None
 
     @property
     def intensity_scale(self) -> float:
         """The current ρ, for evaluation."""
         return self._intensity.scale
+
+    @property
+    def volume_share(self) -> float | None:
+        """v6's share of public traded volume; None without a CompetitionConfig."""
+        return self._share.value if self._share is not None else None
+
+    @property
+    def effective_base(self) -> int:
+        """The base half-spread of the latest quote (v6 narrows it; otherwise the config's)."""
+        return self._effective_base
 
     @property
     def half_spread(self) -> int:
@@ -132,7 +164,16 @@ class AdaptiveMarketMaker:
         if self._toxicity is not None and self._toxicity_config is not None:
             self._toxicity.update(obs.step, fills, fair_value)
             widening = self._toxicity_config.widen_per_tick * self._toxicity.value
-        self._half_spread = uncertainty_half_spread(self._config, self._filter.variance, widening)
+        if self._share is not None and self._competition is not None:
+            self._share.update(
+                sum(f.size for f in fills), sum(t.size for t in obs.last_step_trades)
+            )
+            self._effective_base = competitive_base(
+                self._config.base_half_spread, self._share.value, self._competition
+            )
+        self._half_spread = uncertainty_half_spread(
+            self._config, self._filter.variance, widening, self._effective_base
+        )
 
         skew = skew_ticks(obs.position, self._skew.skew_per_lot)
         reservation = round_half_away(fair_value) - skew

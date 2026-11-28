@@ -1,5 +1,5 @@
-"""Record what an agent quoted, per step, for evaluation only: half-spread, v3's toxicity score
-and v4's intensity scale ρ.
+"""Record what an agent quoted, per step, for evaluation only: half-spread, v3's toxicity score,
+v4's intensity scale ρ and v6's volume share and effective base.
 
 `evaluate(..., agent_factory=recorder.factory)` builds every episode's agent through the
 recorder, so the per-episode means line up with the result's seeds.
@@ -21,13 +21,15 @@ from mm.eval.runner import ScenarioResult
 
 
 class RecordingAgent:
-    """Wraps an agent; keeps each quote's half-spread, v3's toxicity score and v4's ρ."""
+    """Wraps an agent; keeps each quote's half-spread, v3's toxicity score, v4's ρ and v6's state."""
 
     def __init__(self, inner: Agent) -> None:
         self.inner = inner
         self.half_spreads: list[float] = []
         self.scores: list[float] = []
         self.intensity: list[float] = []  # ρ after each quote; empty for other agents
+        self.share: list[float] = []  # v6 volume share after each quote; empty for other agents
+        self.effective_base: list[float] = []  # v6 effective base half-spread, ticks
 
     def quote(self, obs: Observation) -> Quote:
         quote = self.inner.quote(obs)
@@ -37,6 +39,10 @@ class RecordingAgent:
             self.scores.append(self.inner.toxicity)
         if isinstance(self.inner, AdaptiveMarketMaker):
             self.intensity.append(self.inner.intensity_scale)
+            share = self.inner.volume_share
+            if share is not None:
+                self.share.append(share)
+                self.effective_base.append(self.inner.effective_base)
         return quote
 
 
@@ -60,6 +66,15 @@ class EpisodeRecorder:
     def mean_intensity(self) -> list[float]:
         """Per-episode mean ρ; empty when the agent has none."""
         return [_mean(e.intensity) for e in self.episodes if e.intensity]
+
+
+    def mean_share(self) -> list[float]:
+        """Per-episode mean v6 volume share; empty when the agent has none."""
+        return [_mean(e.share) for e in self.episodes if e.share]
+
+    def mean_effective_base(self) -> list[float]:
+        """Per-episode mean v6 effective base half-spread; empty when the agent has none."""
+        return [_mean(e.effective_base) for e in self.episodes if e.effective_base]
 
 
 def informed_lot_share(result: ScenarioResult) -> list[float]:
