@@ -8,8 +8,8 @@ def test_package_has_version():
     assert mm.__version__
 
 
-def test_entry_point_prints_episode_summary(capsys):
-    main()
+def test_entry_point_prints_evaluation_summary(capsys, tmp_path):
+    main(["--seeds", "dev", "--scenarios", "base", "--steps", "50", "--out", str(tmp_path)])
     out = capsys.readouterr().out
-    assert "Final PnL:" in out
-    assert "Gate events:" in out
+    assert "Final PnL" in out
+    assert "% time at limit" in out

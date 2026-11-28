@@ -34,6 +34,13 @@ position_limit = 50             # lots
 max_order_size = 10             # lots
 max_quote_distance = 50         # ticks from the last trade
 
+[evaluation]
+dev_seeds = [0, 29]             # inclusive range, used for tuning
+heldout_seeds = [1000, 1029]    # inclusive range, used only for reported numbers
+markout_horizons = [0, 1, 5, 10, 20]
+bootstrap_resamples = 10000
+bootstrap_seed = 12345
+
 [scenarios]                     # each scenario lists only what it changes
 no_informed = { "market.informed.share" = 0.0 }
 base        = {}

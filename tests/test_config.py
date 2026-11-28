@@ -145,3 +145,36 @@ def test_range_validation_still_fires(section, key, value):
     raw[section][key] = value
     with pytest.raises(ValueError, match=f"{key} must be"):
         build_config(raw)
+
+
+def test_evaluation_seed_ranges_are_inclusive():
+    evaluation = load_config().evaluation
+    assert evaluation.dev_seeds == tuple(range(30))
+    assert evaluation.heldout_seeds == tuple(range(1000, 1030))
+    assert evaluation.markout_horizons == (0, 1, 5, 10, 20)
+    assert (evaluation.bootstrap_resamples, evaluation.bootstrap_seed) == (10000, 12345)
+
+
+@pytest.mark.parametrize("value", [[0, 1.5], "0, 1", 3])
+def test_markout_horizons_must_be_a_list_of_integers(value):
+    raw = default_raw()
+    raw["evaluation"]["markout_horizons"] = value
+    with pytest.raises(ValueError, match="'evaluation.markout_horizons' must be a list"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "message"),
+    [
+        ("dev_seeds", [5, 4], "must not be empty"),
+        ("heldout_seeds", [20, 40], "must not overlap"),
+        ("markout_horizons", [], "markout_horizons"),
+        ("markout_horizons", [-1, 0], "markout_horizons"),
+        ("bootstrap_resamples", 0, "bootstrap_resamples"),
+    ],
+)
+def test_evaluation_validation_fires(key, value, message):
+    raw = default_raw()
+    raw["evaluation"][key] = value
+    with pytest.raises(ValueError, match=message):
+        build_config(raw)

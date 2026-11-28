@@ -40,7 +40,9 @@ class StepRecord:
     position: int
     cash: int
     bid_price: int | None  # the agent's posted bid after the gate, or None
+    bid_size: int  # posted bid size after the gate; 0 when there is no bid
     ask_price: int | None
+    ask_size: int
 
 
 @dataclass(frozen=True)
@@ -110,7 +112,9 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
                 position=account.position,
                 cash=account.cash,
                 bid_price=gated.quote.bid_price,
+                bid_size=gated.quote.bid_size,
                 ask_price=gated.quote.ask_price,
+                ask_size=gated.quote.ask_size,
             )
         )
 
