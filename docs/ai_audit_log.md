@@ -26,3 +26,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** two tests still asserted the old placeholder γ = 0.01 (one read the default config instead of fixing its own value), so they failed, and the branch was pushed anyway.
 - **How it was caught:** the test output printed above the push result; no PR had been opened yet.
 - **Fix:** the agent test now sets its own skew explicitly instead of relying on the config default; the config test asserts the chosen value. Pushes are now chained only after a passing test run.
+
+### 2026-11-28: The agent's model was given the market's true parameters
+- **What the AI produced:** the v2 design (written by the assistant) set `[agent.kalman]` (σ, arrival rate, sizes, fill sensitivity) and v1's σ to exactly the values in `[market]`, describing them as "the agent's own assumptions".
+- **What was wrong:** a real market maker cannot know how takers behave. Copying the simulator's parameters (and its exact fill formula) made v2 right by construction and overstated its results. v1's σ and τ were copied too, although only their tuned product mattered.
+- **How it was caught:** the author asked how a market maker would know R and H in practice.
+- **Fix:** a standing rule in CLAUDE.md (no market knowledge in agents); every taker parameter is now estimated from the agent's own fills on training seeds (`make calibrate`), with an estimated-vs-true table as a simulation-only check; v1's skew is a single tuned parameter; the exponential fill shape is tested separately with non-exponential taker scenarios.
