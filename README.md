@@ -6,7 +6,7 @@ A market-making agent that quotes both sides of a limit order book, earning the 
 uninformed flow while detecting and defending against informed (toxic) flow. The repo also contains
 the agent-based market simulator used to develop and evaluate it, since the brief provides no data.
 
-> Status: repository scaffold. Components are added one PR at a time; see `docs/` for design specs.
+> Status: complete. Simulator, risk layer, evaluation harness, agents v0–v6 (v5 is the default) and a competing-maker mode. Design decisions are in `docs/decisions/`, results in `docs/results/` (held-out summary: `docs/results/summary.md`).
 
 ## Quick start
 
@@ -67,4 +67,98 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pu
 
 ## Architecture
 
-To be filled in as components land (simulator, agent, evaluation harness).
+| Module | Role |
+|--------|------|
+| `mm.engine` | Limit order book (price-time priority, integer ticks), IOC matching, account |
+| `mm.market` | Hidden true-value path, noise and informed takers, arrival regimes |
+| `mm.agent` | Quoting strategies, the `Agent` interface and the registry that builds them by name |
+| `mm.risk` | Order gate (the only path to the book) and the runtime invariant monitor |
+| `mm.eval` | Metrics, bootstrap CIs, paired comparisons, reports, plots and the CLI |
+
+One step of `mm.simulation.run_episode`:
+
+```
+       observation          position, cash, own fills, last trades (no V, no taker kind)
+            |
+       agent.quote          bid/ask price and size, fair-value estimate
+            |
+       order gate           reject bad size or price, reject a crossed quote, clip to the limit
+            |
+       book                 cancel the agent's orders, post the gated bid and ask
+            |
+V(t) -> takers              noise and informed (sees V(t+10)) IOC orders
+            |
+       fills -> account     position and cash
+            |
+       invariant monitor    halt on any violation, then record the step
+```
+
+### Agents
+
+Selected with `[agent] type` in the config or `--agents a,b` on the CLI.
+
+| Name | Version | Idea |
+|------|---------|------|
+| `naive` | v0 | Fixed 2-tick half-spread around the last trade price; no inventory awareness |
+| `skew` | v1 | Avellaneda–Stoikov reservation price: shift quotes against inventory (`skew_per_lot`, tuned on dev seeds) |
+| `kalman` | v2 | v1's skew around a Kalman-filter fair value driven by order-flow imbalance |
+| `kalman_tuned` | control | v2 with its half-spread tuned on dev seeds (2 → 4 ticks); the bar v3–v6 must beat |
+| `toxicity` | v3 | Widen the spread when the agent's own fills mark out badly. Negative result: best widening is 0 |
+| `adaptive` | v4 | Online flow intensity and an uncertainty term in the spread. Small gain, mostly a noise-rate level fix |
+| `final` | **v5 (default)** | All knobs tuned jointly for worst-case Sharpe; the gain comes from stronger inventory skew |
+| `competitive` | v6 | Narrow the spread when a competitor takes our volume share. Negative result: best undercut is 0 |
+| `calibration` | helper | Quotes at random distances so `make calibrate` can estimate `[agent.kalman]` from its own fills |
+
+What each version tested and found: `docs/decisions/05`–`13`. Held-out summary: `docs/results/summary.md`.
+
+### Scenarios
+
+Defined under `[scenarios]` in `config/default.toml`, each as overrides of the base values.
+
+| Scenario | Change from base |
+|----------|------------------|
+| `no_informed` | informed share 0 |
+| `base` | none (informed share 0.15) |
+| `toxic` | informed share 0.40 |
+| `uniform_takers` | noise tolerance uniform (hard cutoff) |
+| `heavy_tail_takers` | noise tolerance lognormal |
+| `bursty_takers` | Markov calm/busy noise arrivals, same mean rate |
+| `heavy_tail_sizes` | lognormal noise sizes, same mean |
+| `fat_tail_value` | Student-t value steps, same std |
+| `realistic_mix` | the last three together |
+| `vs_v1` | a competing maker (v1, 2-tick spread) in the same book |
+| `vs_tuned` | competing maker `kalman_tuned` (4 ticks) |
+| `vs_final` | competing maker `final` (self-play against v5) |
+| `vs_competitive` | competing maker `competitive` (self-play against v6) |
+
+A competing maker has its own account, order gate and invariant monitor; both see only public trades.
+
+## Commands
+
+| Target | What it does |
+|--------|--------------|
+| `make build` | Build the Docker image |
+| `make run` | Build and evaluate on held-out seeds in every scenario; writes `results/` |
+| `make determinism` | Run a short evaluation twice in Docker and compare `episodes.csv` digests |
+| `make test` | Run the test suite in Docker |
+| `make venv` | Create `.venv` with pinned runtime and dev dependencies |
+| `make test-local` | Run the test suite in the local venv |
+| `make lint` | ruff |
+| `make typecheck` | mypy, strict on `src/` |
+| `make coverage` | Tests with coverage, fails under 85% on `src/mm` |
+| `make checks` | Repository checks (layout, pins, word count) |
+| `make verify` | checks, lint, typecheck and coverage |
+| `make calibrate` | Estimate `[agent.kalman]` on base dev seeds and print it next to the true values |
+| `make sweep` | v1 `skew_per_lot` sweep on dev seeds; writes `docs/results/v1-skew/` |
+| `make v2-experiments` | v2 vs v1, gain sensitivity and robustness on dev seeds |
+| `make sweep-toxicity` / `make v3-experiments` | v3: dev sweep against the tuned-spread control / held-out evaluation |
+| `make sweep-adaptive` / `make v4-experiments` | v4: dev sweep / held-out evaluation |
+| `make tune` / `make v5-experiments` | v5: joint random search on dev seeds / held-out evaluation |
+| `make sweep-competitive` / `make v6-experiments` | v6: dev sweep with a competitor / held-out evaluation and `docs/results/summary.md` |
+| `make competition` | Our agents against each competing maker, held-out seeds |
+| `make stress-tolerance` | v0–v2 under different noise tolerance shapes, dev seeds |
+| `make stress-realistic` | v1 vs v2 on base and the realism scenarios, held-out seeds |
+| `make realism-data` | Download one day of Binance BTCUSDT aggTrades and verify its checksum |
+| `make realism` | Compare simulated taker flow with the BTCUSDT data |
+| `make bench` | Median `run_episode` time for growing `n_steps` |
+| `make clean` | Remove `.venv` and test caches |
