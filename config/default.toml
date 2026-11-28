@@ -1,0 +1,27 @@
+# All simulation parameters. Prices are in ticks unless stated.
+
+[instrument]
+tick_size = 0.01
+initial_price = 100.00          # converted to ticks on load
+
+[market.true_value]
+sigma = 1.0                     # std of each step's move, in ticks
+
+[market.noise]
+rate = 1.0                      # mean arrivals per step (Poisson)
+size = [1, 5]                   # lots, uniform inclusive
+fill_prob_at_2_ticks = 0.30     # sets how price-sensitive they are
+
+[market.informed]
+share = 0.15                    # fraction of all takers
+lookahead = 10                  # steps ahead they see the true value
+edge_threshold = 1.0            # minimum edge they need, in ticks
+size = [5, 10]
+
+[engine]
+fee_per_lot = 0                 # ticks per lot
+
+[scenarios]                     # each scenario lists only what it changes
+no_informed = { "market.informed.share" = 0.0 }
+base        = {}
+toxic       = { "market.informed.share" = 0.40 }

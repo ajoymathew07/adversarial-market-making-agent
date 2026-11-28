@@ -1,0 +1,145 @@
+import tomllib
+from typing import Any
+
+import pytest
+
+from mm.config import DEFAULT_CONFIG_PATH, build_config, load_config, scenario_names
+
+
+def default_raw() -> dict[str, Any]:
+    return tomllib.loads(DEFAULT_CONFIG_PATH.read_text())
+
+
+def test_default_file_loads():
+    config = load_config()
+    assert config.instrument.tick_size == 0.01
+    assert config.engine.fee_per_lot == 0
+
+
+def test_initial_price_is_converted_to_ticks():
+    assert load_config().instrument.initial_price_ticks == 10000
+
+
+def test_load_config_reads_the_given_path(tmp_path):
+    path = tmp_path / "custom.toml"
+    path.write_text(DEFAULT_CONFIG_PATH.read_text().replace("fee_per_lot = 0", "fee_per_lot = 3"))
+    assert load_config(path).engine.fee_per_lot == 3
+
+
+def test_unknown_key_is_rejected_by_name():
+    raw = default_raw()
+    raw["engine"]["fee_per_lots"] = 1
+    with pytest.raises(ValueError, match="'engine.fee_per_lots'"):
+        build_config(raw)
+
+
+def test_unknown_section_is_rejected_by_name():
+    raw = default_raw()
+    raw["engin"] = {}
+    with pytest.raises(ValueError, match="'engin'"):
+        build_config(raw)
+
+
+def test_missing_key_is_rejected_by_name():
+    raw = default_raw()
+    del raw["instrument"]["tick_size"]
+    with pytest.raises(ValueError, match="missing config key 'instrument.tick_size'"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize("value", ["0", 0.5, True])
+def test_non_integer_value_for_integer_key_is_rejected_by_name(value):
+    raw = default_raw()
+    raw["engine"]["fee_per_lot"] = value
+    with pytest.raises(ValueError, match="'engine.fee_per_lot' must be an integer"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize("value", ["0.01", False])
+def test_non_number_for_number_key_is_rejected_by_name(value):
+    raw = default_raw()
+    raw["instrument"]["tick_size"] = value
+    with pytest.raises(ValueError, match="'instrument.tick_size' must be a number"):
+        build_config(raw)
+
+
+def test_section_that_is_not_a_table_is_rejected_by_name():
+    raw = default_raw()
+    raw["engine"] = 0
+    with pytest.raises(ValueError, match="'engine' must be a table"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize("name", scenario_names())
+def test_every_scenario_loads(name):
+    assert load_config(scenario=name).market.informed.share >= 0
+
+
+def test_scenario_names_follow_file_order():
+    assert scenario_names() == ("no_informed", "base", "toxic")
+
+
+def test_scenario_override_replaces_only_its_key():
+    raw = default_raw()
+    raw["scenarios"]["calm"] = {"market.true_value.sigma": 0.5}
+    config = build_config(raw, "calm")
+    assert config.market.true_value.sigma == 0.5
+    assert config.market.informed == load_config().market.informed
+
+
+def test_unknown_scenario_is_rejected_by_name():
+    with pytest.raises(ValueError, match="unknown scenario 'toxik'"):
+        load_config(scenario="toxik")
+
+
+@pytest.mark.parametrize("dotted", ["market.informed.shar", "markets.informed.share", "x"])
+def test_scenario_override_of_unknown_key_is_rejected_by_name(dotted):
+    raw = default_raw()
+    raw["scenarios"]["typo"] = {dotted: 0.4}
+    with pytest.raises(ValueError, match=f"unknown key '{dotted}'"):
+        build_config(raw, "typo")
+
+
+def test_scenario_override_with_wrong_type_is_rejected_by_name():
+    raw = default_raw()
+    raw["scenarios"]["typo"] = {"market.informed.share": "0.4"}
+    with pytest.raises(ValueError, match="'market.informed.share' must be a number"):
+        build_config(raw, "typo")
+
+
+def test_scenario_that_is_not_a_table_is_rejected_by_name():
+    raw = default_raw()
+    raw["scenarios"]["bad"] = 0.4
+    with pytest.raises(ValueError, match="'scenarios.bad' must be a table"):
+        build_config(raw, "bad")
+
+
+def test_missing_scenarios_table_is_rejected():
+    raw = default_raw()
+    del raw["scenarios"]
+    with pytest.raises(ValueError, match="'scenarios'"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize("value", [[1], [1, 2, 3], [1, 2.5], 3])
+def test_size_range_must_be_two_integers(value):
+    raw = default_raw()
+    raw["market"]["noise"]["size"] = value
+    with pytest.raises(ValueError, match=r"'market.noise.size' must be \[min, max\]"):
+        build_config(raw)
+
+
+def test_size_range_is_read_into_min_and_max():
+    noise = load_config().market.noise
+    assert (noise.size_min, noise.size_max) == (1, 5)
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value"),
+    [("instrument", "tick_size", 0.0), ("instrument", "initial_price", -1.0)],
+)
+def test_range_validation_still_fires(section, key, value):
+    raw = default_raw()
+    raw[section][key] = value
+    with pytest.raises(ValueError, match=f"{key} must be"):
+        build_config(raw)

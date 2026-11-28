@@ -37,6 +37,7 @@ make venv && make test-local
 ├── Dockerfile         pinned container definition
 ├── Makefile           run / test entry points
 ├── requirements.txt   exact dependency pins
+├── config/            default.toml: every simulation parameter, commented
 ├── scripts/           repository checks used by CI (`make checks`)
 ├── src/mm/            Python package
 ├── tests/             unit, edge-case and invariant tests
