@@ -301,4 +301,11 @@ Our agent and the competitor both run the config named in the column. The diagno
 
 ## Interpretation
 
-TBD
+| Question | Answer |
+|---|---|
+| Does narrowing the spread when our share drops help? | **No.** Tuned with vs_v1 in the training set, the best v6 sets d = 0, so it is v5. Every d > 0 lowers the vs_v1 Sharpe, and more undercutting is worse (d = 4: −3.2). |
+| Does the share signal work? | **Yes.** Share is 1.00 in every solo scenario and 0.16 in vs_v1, from own fills against public trades only. |
+| Why doesn't undercutting pay? | With the best d > 0 config, our vs_v1 share rises from 15.9% to 23.2%, but PnL falls from +0.50 to −0.21. The extra flow at a narrower spread includes informed flow that the reduced edge doesn't cover. |
+| Do two undercutting agents race to the floor? | **No.** The d = 1 config against itself averages a 4.5-tick base, and both stay profitable (+6.57 / +6.25), slightly below two v5 agents (+6.92 / +7.33). |
+
+Against a tighter rival, the best response is to stay wide and accept the smaller share: the rival takes the toxic flow at the front of the book. v5 stays the default agent.
