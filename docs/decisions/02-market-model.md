@@ -41,8 +41,9 @@ Set in `config/default.toml` (`[instrument]`, `[market.*]`); the base values are
 | Informed lookahead / edge | 10 steps / 1 tick |
 
 Scenarios `no_informed`, `base` and `toxic` differ only in informed share (0%, 15%, 40%);
-`uniform_takers` and `heavy_tail_takers` change only the noise tolerance shape (below). Each is
-an override table under `[scenarios]` in `config/default.toml`.
+`uniform_takers` and `heavy_tail_takers` change only the noise tolerance shape (below); the
+realism scenarios (bursty arrivals, heavy-tailed sizes, fat-tailed steps) are in decision 08. Each
+is an override table under `[scenarios]` in `config/default.toml`.
 
 The agent never sees V or a taker's kind; only the simulation loop and evaluation read them.
 
