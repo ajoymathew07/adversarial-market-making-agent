@@ -44,24 +44,32 @@ class FlowExpectation:
     mean: float  # h, lots
     slope: float  # H = dh/dfv, lots per tick
     variance: float  # R, lots^2
+    lots: float  # expected filled lots on both sides, (λ/2) s̄ (buy_rate + sell_rate)
 
 
 def expected_flow(
-    config: KalmanConfig, fv: float, bid: int | None, ask: int | None
+    config: KalmanConfig,
+    fv: float,
+    bid: int | None,
+    ask: int | None,
+    rate_scale: float = 1.0,
 ) -> FlowExpectation:
     """h, H and R for the quotes that rested; a missing side contributes nothing.
 
     The rates are uncapped, so H > 0 whenever a side rests, even a quote through fv (as when
     the position limit removes one side and the skew pushes the other past fv).
+    `rate_scale` multiplies the calibrated noise rate λ (v4's online intensity ρ; 1 for v2).
     """
     k = config.k
     buy_rate = math.exp(-k * (ask - fv)) if ask is not None else 0.0
     sell_rate = math.exp(-k * (fv - bid)) if bid is not None else 0.0
-    half_rate = config.noise_rate / 2
+    half_rate = config.noise_rate * rate_scale / 2
+    lots = half_rate * config.mean_size * (buy_rate + sell_rate)
     return FlowExpectation(
         mean=half_rate * config.mean_size * (buy_rate - sell_rate),
         slope=half_rate * config.mean_size * k * (buy_rate + sell_rate),
         variance=max(half_rate * config.mean_size_sq * (buy_rate + sell_rate), MIN_FLOW_VARIANCE),
+        lots=lots,
     )
 
 
@@ -84,15 +92,24 @@ class KalmanFairValue:
     def variance(self) -> float:
         return self._variance
 
-    def update(self, net_taker_buys: float, posted_bid: int | None, posted_ask: int | None) -> None:
-        """One predict + update step from the previous step's flow and resting quotes."""
+    def update(
+        self,
+        net_taker_buys: float,
+        posted_bid: int | None,
+        posted_ask: int | None,
+        rate_scale: float = 1.0,
+    ) -> None:
+        """One predict + update step from the previous step's flow and resting quotes.
+
+        `rate_scale` scales the noise rate in the flow model (see `expected_flow`).
+        """
         self._variance += self._config.sigma**2
         if posted_bid is None and posted_ask is None:
             return  # nothing rested, so the flow says nothing about the value
         # The expectation uses the quotes that actually rested, skew included. When long, the
         # agent shifts its quotes down, so it expects more taker buys; only flow beyond that
         # expectation moves fv. This keeps the agent's own skew from being read as information.
-        flow = expected_flow(self._config, self._value, posted_bid, posted_ask)
+        flow = expected_flow(self._config, self._value, posted_bid, posted_ask, rate_scale)
         p, h = self._variance, flow.slope
         gain = self._config.gain_scale * p * h / (h * h * p + flow.variance)
         self._value += gain * (net_taker_buys - flow.mean)
