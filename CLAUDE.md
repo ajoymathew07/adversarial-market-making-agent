@@ -34,6 +34,7 @@ toxic order flow, plus the simulated market it is developed and evaluated in.
 - **Module boundaries:** `mm.engine` (order book, matching), `mm.market` (true-value process, counterparty bots, scenarios), `mm.agent` (quoting strategy), `mm.risk` (order gate, invariant monitor), `mm.eval` (metrics, benchmarks, reports). Modules talk through small typed interfaces; the agent never reaches into engine internals.
 - **Single order gate:** every order the agent sends goes through one function in `mm.risk` that enforces position limits, no self-cross, size/price sanity and order-rate limits. No other path to the engine.
 - **Runtime invariant monitor:** after every simulation step, check PnL reconciliation, position limits, no double fills and an uncrossed book; halt the run on any violation. Runs in every simulation, not only in tests.
+- **No market knowledge in agents:** agents never use the market's parameters or exact formulas. Every agent parameter is either a stated choice of ours or estimated/tuned on development (training) seeds, then frozen for held-out testing. Simulation-only checks may compare estimates with the true values.
 - **Config-driven parameters:** all parameter values live in `config/default.toml`; their typed schema and the loader live in `mm/config.py`; no magic numbers in logic. Changing a constraint (e.g. position limit, tick size, latency) must be a config change, not a code change.
 
 ## Layout
