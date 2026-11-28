@@ -14,6 +14,8 @@ def test_default_file_loads():
     config = load_config()
     assert config.instrument.tick_size == 0.01
     assert config.engine.fee_per_lot == 0
+    assert (config.n_steps, config.seed) == (2000, 0)
+    assert (config.agent.half_spread, config.risk.position_limit) == (2, 50)
 
 
 def test_initial_price_is_converted_to_ticks():

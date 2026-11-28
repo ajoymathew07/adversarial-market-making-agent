@@ -107,12 +107,29 @@ class MarketConfig:
 
 
 @dataclass(frozen=True)
+class AgentConfig:
+    half_spread: int  # ticks from the centre to each quote
+    quote_size: int  # lots on each side
+
+
+@dataclass(frozen=True)
+class RiskConfig:
+    position_limit: int  # max |position| in lots
+    max_order_size: int  # lots per order
+    max_quote_distance: int  # max ticks between a quote and the last trade price
+
+
+@dataclass(frozen=True)
 class SimConfig:
     """Everything one episode needs, built from the config file."""
 
     instrument: InstrumentConfig
     engine: EngineConfig
     market: MarketConfig
+    agent: AgentConfig
+    risk: RiskConfig
+    n_steps: int
+    seed: int
 
 
 def load_config(path: Path | None = None, scenario: str = "base") -> SimConfig:
@@ -128,10 +145,15 @@ def scenario_names(path: Path | None = None) -> tuple[str, ...]:
 def build_config(raw: dict[str, Any], scenario: str = "base") -> SimConfig:
     """Build the typed config from parsed TOML. Raises ValueError naming any bad key."""
     root = _Table(_apply_scenario(raw, scenario), "")
+    simulation = root.get_table("simulation")
     config = SimConfig(
         instrument=_instrument(root.get_table("instrument")),
         engine=_engine(root.get_table("engine")),
         market=_market(root.get_table("market")),
+        agent=_agent(root.get_table("agent")),
+        risk=_risk(root.get_table("risk")),
+        n_steps=simulation.get_int("n_steps"),
+        seed=simulation.get_int("seed"),
     )
     root.reject_unread()
     return config
@@ -204,6 +226,21 @@ def _market(table: "_Table") -> MarketConfig:
             size_min=informed_min,
             size_max=informed_max,
         ),
+    )
+
+
+def _agent(table: "_Table") -> AgentConfig:
+    return AgentConfig(
+        half_spread=table.get_int("half_spread"),
+        quote_size=table.get_int("quote_size"),
+    )
+
+
+def _risk(table: "_Table") -> RiskConfig:
+    return RiskConfig(
+        position_limit=table.get_int("position_limit"),
+        max_order_size=table.get_int("max_order_size"),
+        max_quote_distance=table.get_int("max_quote_distance"),
     )
 
 

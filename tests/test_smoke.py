@@ -8,6 +8,8 @@ def test_package_has_version():
     assert mm.__version__
 
 
-def test_entry_point_runs(capsys):
+def test_entry_point_prints_episode_summary(capsys):
     main()
-    assert "scaffold OK" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Final PnL:" in out
+    assert "Gate events:" in out

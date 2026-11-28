@@ -4,6 +4,10 @@
 tick_size = 0.01
 initial_price = 100.00          # converted to ticks on load
 
+[simulation]
+n_steps = 2000
+seed = 0
+
 [market.true_value]
 sigma = 1.0                     # std of each step's move, in ticks
 
@@ -20,6 +24,15 @@ size = [5, 10]
 
 [engine]
 fee_per_lot = 0                 # ticks per lot
+
+[agent]
+half_spread = 2                 # ticks
+quote_size = 5                  # lots
+
+[risk]
+position_limit = 50             # lots
+max_order_size = 10             # lots
+max_quote_distance = 50         # ticks from the last trade
 
 [scenarios]                     # each scenario lists only what it changes
 no_informed = { "market.informed.share" = 0.0 }
