@@ -243,11 +243,11 @@ def test_full_episode_is_deterministic():
     assert run_episode(config) == run_episode(config)
 
 
-def test_registry_has_kalman_and_default_type_stays_skew():
+def test_registry_has_kalman_and_the_default_type_is_the_final_agent():
     assert "kalman" in AGENT_NAMES
     config = replace(CONFIG, agent=replace(CONFIG.agent, type="kalman"))
     assert isinstance(make_agent(config), KalmanMarketMaker)
-    assert CONFIG.agent.type == "skew"
+    assert CONFIG.agent.type == "final"
 
 
 def test_kalman_config_loads_the_calibrated_values():

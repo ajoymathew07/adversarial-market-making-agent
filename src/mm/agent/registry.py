@@ -31,6 +31,13 @@ _FACTORIES: dict[str, Callable[[SimConfig], Agent]] = {
     "adaptive": lambda config: AdaptiveMarketMaker(
         config.agent.skew, config.agent.kalman, config.agent.adaptive
     ),
+    # v5: the adaptive agent plus v3's toxicity widening, every knob from [agent.final].
+    "final": lambda config: AdaptiveMarketMaker(
+        config.agent.final.skew(),
+        config.agent.kalman,
+        config.agent.final.adaptive(),
+        config.agent.final.toxicity(),
+    ),
     # Uses v1's skew, quotes the largest size the gate allows, seeds its RNG from the episode.
     "calibration": lambda config: CalibrationMarketMaker(
         config.agent.calibration,
