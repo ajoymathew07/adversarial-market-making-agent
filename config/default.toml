@@ -58,11 +58,17 @@ mean_size_sq = 16.44            # average of fill size squared, lots^2
 k = 0.38                        # fills at distance d from the centre fall as exp(-k * d)
 gain_scale = 1.0                # 1 = the Kalman gain; used only for the sensitivity check
 
+# [agent.kalman_tuned] half_spread and [agent.toxicity] base_half_spread, markout_horizon and
+# widen_per_tick from make sweep-toxicity, 2026-11-28 (dev seeds, worst-case Sharpe over
+# no_informed/base/toxic; docs/results/v3-toxicity/dev-sweep.md). v3's best has c = 0, so it
+# quotes exactly as the control: widening on toxicity did not beat a tuned fixed spread.
+[agent.kalman_tuned]            # control for v3: v2 with a tuned half-spread; v1/v2 keep [agent.skew]
+half_spread = 4                 # ticks
+
 [agent.toxicity]                # v3: widen both sides when the agent's own fills go against it
-# markout_horizon and widen_per_tick from make sweep-toxicity, 2026-11-28 (dev seeds,
-# worst-case Sharpe over no_informed/base/toxic; docs/results/v3-toxicity/dev-sweep.md)
-markout_horizon = 20            # tau, steps after a fill at which it is marked against our fv
-widen_per_tick = 4.0            # c, half-spread ticks added per tick of toxicity score
+base_half_spread = 4            # ticks at zero toxicity
+markout_horizon = 5             # tau, observations from a fill's reference fv to its mark
+widen_per_tick = 0.0            # c, half-spread ticks per tick of toxicity
 ewma_halflife = 50.0            # lots of matured fills; a choice, not tuned (v5 searches it)
 max_half_spread = 8             # ticks; a choice, not tuned
 

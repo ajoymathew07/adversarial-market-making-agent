@@ -1,6 +1,7 @@
 """Build an agent from its name in the config: `[agent] type = "naive"`."""
 
 from collections.abc import Callable
+from dataclasses import replace
 
 from mm.agent.calibration import CalibrationMarketMaker
 from mm.agent.interface import Agent
@@ -15,6 +16,11 @@ _FACTORIES: dict[str, Callable[[SimConfig], Agent]] = {
     "skew": lambda config: InventorySkewMarketMaker(config.agent.skew),
     # v2 shares v1's [agent.skew] quoting settings; only its fair value differs.
     "kalman": lambda config: KalmanMarketMaker(config.agent.skew, config.agent.kalman),
+    # The control for v3: v2 with its own tuned half-spread instead of [agent.skew]'s.
+    "kalman_tuned": lambda config: KalmanMarketMaker(
+        replace(config.agent.skew, half_spread=config.agent.kalman_tuned.half_spread),
+        config.agent.kalman,
+    ),
     # v3 is v2 plus a half-spread that widens on its own fills' markouts.
     "toxicity": lambda config: ToxicityMarketMaker(
         config.agent.skew, config.agent.kalman, config.agent.toxicity

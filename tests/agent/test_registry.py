@@ -24,7 +24,7 @@ def test_registry_builds_the_named_agent_from_its_section():
 
 
 def test_unknown_agent_type_error_lists_valid_names():
-    message = "unknown agent type 'naiv'; known: naive, skew, kalman, toxicity, calibration"
+    message = "unknown agent type 'naiv'; known: naive, skew, kalman, kalman_tuned, toxicity, calibration"
     with pytest.raises(ValueError, match=message):
         make_agent(of_type("naiv"))
 

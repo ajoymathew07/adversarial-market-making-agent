@@ -189,15 +189,31 @@ class KalmanConfig:
 
 
 @dataclass(frozen=True)
+class KalmanTunedConfig:
+    """The tuned-spread control: v2 with its own half-spread (see docs/decisions/09)."""
+
+    half_spread: int  # ticks; replaces [agent.skew] half_spread for this agent only
+
+    def __post_init__(self) -> None:
+        if self.half_spread < 1:
+            raise ValueError("kalman_tuned half_spread must be >= 1")
+
+
+@dataclass(frozen=True)
 class ToxicityConfig:
     """The v3 agent's spread widening on its own fills' markouts (see mm.agent.toxicity)."""
 
-    markout_horizon: int  # τ: steps after a fill at which it is marked against the agent's fv
+    base_half_spread: int  # ticks; the half-spread when the toxicity score is 0
+    markout_horizon: int  # τ: observations from a fill's reference fair value to its mark
     widen_per_tick: float  # c: half-spread ticks added per tick of toxicity score
     ewma_halflife: float  # lots of matured fills after which an old markout's weight halves
     max_half_spread: int  # ticks; the widened half-spread is clipped to this
 
     def __post_init__(self) -> None:
+        if self.base_half_spread < 1:
+            raise ValueError("toxicity base_half_spread must be >= 1")
+        if self.max_half_spread < self.base_half_spread:
+            raise ValueError("toxicity max_half_spread must be >= base_half_spread")
         if self.markout_horizon < 1:
             raise ValueError("toxicity markout_horizon must be >= 1")
         if self.widen_per_tick < 0:
@@ -225,12 +241,9 @@ class AgentConfig:
     naive: NaiveConfig
     skew: SkewConfig
     kalman: KalmanConfig
+    kalman_tuned: KalmanTunedConfig
     toxicity: ToxicityConfig
     calibration: CalibrationAgentConfig
-
-    def __post_init__(self) -> None:
-        if self.toxicity.max_half_spread < self.skew.half_spread:
-            raise ValueError("toxicity max_half_spread must be >= skew half_spread")
 
 
 @dataclass(frozen=True)
@@ -404,6 +417,7 @@ def _agent(table: "_Table") -> AgentConfig:
     naive = table.get_table("naive")
     skew = table.get_table("skew")
     kalman = table.get_table("kalman")
+    kalman_tuned = table.get_table("kalman_tuned")
     toxicity = table.get_table("toxicity")
     calibration = table.get_table("calibration")
     min_distance, max_distance = calibration.get_int_pair("distances")
@@ -426,7 +440,9 @@ def _agent(table: "_Table") -> AgentConfig:
             k=kalman.get_float("k"),
             gain_scale=kalman.get_float("gain_scale"),
         ),
+        kalman_tuned=KalmanTunedConfig(half_spread=kalman_tuned.get_int("half_spread")),
         toxicity=ToxicityConfig(
+            base_half_spread=toxicity.get_int("base_half_spread"),
             markout_horizon=toxicity.get_int("markout_horizon"),
             widen_per_tick=toxicity.get_float("widen_per_tick"),
             ewma_halflife=toxicity.get_float("ewma_halflife"),
