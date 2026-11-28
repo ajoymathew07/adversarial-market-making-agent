@@ -35,9 +35,20 @@ Development seeds 0–29 are for tuning; held-out seeds 1000–1029 are only for
 tuning cannot overfit them. `make run` uses the held-out set. Seed ranges, markout horizons and
 bootstrap settings are set under `[evaluation]` in `config/default.toml`.
 
+## Paired comparison
+
+`--agents naive,other` runs every agent on the same scenario × seed grid; the first is the
+baseline. The market's random draws never depend on the agent, so the same seed gives every agent
+the same true-value path and the same takers. The per-seed difference (agent − baseline) therefore
+removes the market's randomness, and its bootstrap CI is much tighter than comparing two separate
+averages. We report the mean difference with a 95% percentile-bootstrap CI on those differences
+for PnL, its parts, drawdown, Sharpe, inventory and informed markout at τ=10. A difference is
+significant when its CI excludes 0.
+
 ## Output
 
-A console summary, `results/report.md`, `results/episodes.csv` (one row per scenario × seed) and
+A console summary per agent, comparison tables, `results/report.md`, `results/episodes.csv` (one
+row per agent × scenario × seed) and
 matplotlib plots: PnL and inventory paths for one seed, and markout curves by kind.
 
 ## Determinism

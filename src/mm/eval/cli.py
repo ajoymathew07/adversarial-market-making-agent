@@ -1,12 +1,17 @@
-"""Command line for the evaluation: run, print the summary, write results/."""
+"""Command line: evaluate each agent, print summaries and comparisons, write results/."""
 
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from mm.agent import AGENT_NAMES
 from mm.config import DEFAULT_CONFIG_PATH, load_config, scenario_names
+from mm.eval.compare import pairs
 from mm.eval.plots import write_plots
 from mm.eval.report import (
+    PAIRED_NOTE,
+    comparison_table,
+    comparison_title,
     file_digest,
     format_console,
     header,
@@ -18,8 +23,12 @@ from mm.eval.runner import evaluate
 
 
 def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="mm", description="Evaluate the v0 agent.")
+    parser = argparse.ArgumentParser(prog="mm", description="Evaluate market-making agents.")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    parser.add_argument(
+        "--agents",
+        help="comma-separated agent names, the first is the baseline; default: [agent] type",
+    )
     parser.add_argument("--seeds", choices=["dev", "heldout"], default="heldout")
     parser.add_argument(
         "--scenarios", nargs="+", help="default: every scenario in the config file"
@@ -37,6 +46,14 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     unknown = [name for name in args.scenarios if name not in known]
     if unknown:
         parser.error(f"unknown scenario {', '.join(unknown)}; known: {', '.join(known)}")
+
+    if args.agents is None:
+        args.agents = [load_config(args.config).agent.type]
+    else:
+        args.agents = args.agents.split(",")
+    unknown = [name for name in args.agents if name not in AGENT_NAMES]
+    if unknown:
+        parser.error(f"unknown agent {', '.join(unknown)}; known: {', '.join(AGENT_NAMES)}")
     return args
 
 
@@ -45,16 +62,22 @@ def main(argv: Sequence[str] | None = None) -> None:
     config = load_config(args.config)
     seeds = config.evaluation.dev_seeds if args.seeds == "dev" else config.evaluation.heldout_seeds
     n_steps = config.n_steps if args.steps is None else args.steps
-    results = evaluate(args.scenarios, seeds, n_steps, args.config)
+    runs = [evaluate(args.scenarios, seeds, n_steps, args.config, agent) for agent in args.agents]
 
     args.out.mkdir(parents=True, exist_ok=True)
     csv_path = args.out / "episodes.csv"
-    write_episodes_csv(results, csv_path)
-    write_report(results, n_steps, args.out / "report.md")
-    write_plots(results, args.out / "plots")
+    write_episodes_csv([result for results in runs for result in results], csv_path)
+    write_report(runs, n_steps, args.out / "report.md")
+    write_plots(runs[0], args.out / "plots")
 
-    print(f"v0 naive agent, {args.seeds} seeds: {header(results, n_steps)}")
-    print(format_console(summary_table(results)))
+    for results in runs:
+        print(f"Agent {results[0].agent}, {args.seeds} seeds: {header(results, n_steps)}")
+        print(format_console(summary_table(results)))
+        print()
+    for agent, baseline in pairs(runs):
+        print(f"{comparison_title(agent, baseline)}. {PAIRED_NOTE}")
+        print(format_console(comparison_table(agent, baseline)))
+        print()
     print(f"Wrote {csv_path}, {args.out / 'report.md'} and {args.out / 'plots'}/")
     if args.digest:
         print(f"episodes.csv sha256: {file_digest(csv_path)}")

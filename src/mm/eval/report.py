@@ -5,6 +5,7 @@ import hashlib
 import math
 from pathlib import Path
 
+from mm.eval.compare import COMPARE_METRICS, is_significant, paired_estimate, pairs
 from mm.eval.metrics import KINDS
 from mm.eval.runner import ScenarioResult
 from mm.eval.stats import Estimate, bootstrap_ci
@@ -22,6 +23,10 @@ SUMMARY_METRICS: tuple[tuple[str, str], ...] = (
     ("pct_time_at_limit", "% time at limit"),
 )
 MARKOUT_DECIMALS = 4
+PAIRED_NOTE = (
+    "Per-seed differences (agent − baseline) on identical markets; "
+    "significant when the 95% CI excludes 0."
+)
 
 
 def estimate(result: ScenarioResult, column: str) -> Estimate:
@@ -78,30 +83,54 @@ def header(results: list[ScenarioResult], n_steps: int) -> str:
     return f"{len(seeds)} seeds ({seeds[0]}..{seeds[-1]}), {n_steps} steps per episode"
 
 
-def write_report(results: list[ScenarioResult], n_steps: int, path: Path) -> None:
-    text = "\n\n".join(
-        [
-            "# Evaluation report",
-            header(results, n_steps) + ". Money in price units; markouts per lot.",
-            "## Summary",
+def comparison_title(agent: ScenarioResult, baseline: ScenarioResult) -> str:
+    return f"{agent.agent} − {baseline.agent}: {agent.scenario}"
+
+
+def comparison_table(agent: ScenarioResult, baseline: ScenarioResult) -> list[list[str]]:
+    """One row per compared metric: mean per-seed difference [95% CI] and significance."""
+    rows = [["Metric", "Mean difference [95% CI]", "Significant"]]
+    for column, label in COMPARE_METRICS:
+        est = paired_estimate(agent, baseline, column)
+        significant = "n/a" if math.isnan(est.mean) else ("yes" if is_significant(est) else "no")
+        rows.append([label, format_estimate(est, decimals_for(column)), significant])
+    return rows
+
+
+def write_report(runs: list[list[ScenarioResult]], n_steps: int, path: Path) -> None:
+    """Summary and markout sections per agent, then one comparison section per pair."""
+    sections = [
+        "# Evaluation report",
+        header(runs[0], n_steps) + ". Money in price units; markouts per lot.",
+    ]
+    for results in runs:
+        agent = results[0].agent
+        sections += [
+            f"## Summary: {agent}",
             format_markdown(summary_table(results)),
-            "## Markouts by counterparty kind and horizon",
+            f"## Markouts by counterparty kind and horizon: {agent}",
             format_markdown(markout_table(results)),
         ]
-    )
-    path.write_text(text + "\n")
+    for agent_result, baseline in pairs(runs):
+        sections += [
+            f"## {comparison_title(agent_result, baseline)}",
+            PAIRED_NOTE,
+            format_markdown(comparison_table(agent_result, baseline)),
+        ]
+    path.write_text("\n\n".join(sections) + "\n", encoding="utf-8")
 
 
 def write_episodes_csv(results: list[ScenarioResult], path: Path) -> None:
-    """One row per scenario x seed with every scalar metric."""
+    """One row per agent x scenario x seed with every scalar metric."""
     columns = list(results[0].metrics[0].as_row())
     with path.open("w", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["scenario", "seed", *columns])
+        writer.writerow(["agent", "scenario", "seed", *columns])
         for result in results:
             for seed, metrics in zip(result.seeds, result.metrics, strict=True):
                 row = metrics.as_row()
-                writer.writerow([result.scenario, seed, *(repr(row[c]) for c in columns)])
+                cells = (repr(row[c]) for c in columns)
+                writer.writerow([result.agent, result.scenario, seed, *cells])
 
 
 def file_digest(path: Path) -> str:

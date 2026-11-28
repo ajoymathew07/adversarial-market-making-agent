@@ -3,7 +3,7 @@ from dataclasses import replace
 from mm.agent import NaiveMarketMaker, Observation, Quote
 from mm.config import load_config
 
-DEFAULT = load_config().agent
+DEFAULT = load_config().agent.naive
 
 
 def observation(last_trade_price: int, position: int = 0) -> Observation:

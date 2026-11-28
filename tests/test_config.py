@@ -15,7 +15,7 @@ def test_default_file_loads():
     assert config.instrument.tick_size == 0.01
     assert config.engine.fee_per_lot == 0
     assert (config.n_steps, config.seed) == (2000, 0)
-    assert (config.agent.half_spread, config.risk.position_limit) == (2, 50)
+    assert (config.agent.naive.half_spread, config.risk.position_limit) == (2, 50)
 
 
 def test_initial_price_is_converted_to_ticks():
@@ -177,4 +177,31 @@ def test_evaluation_validation_fires(key, value, message):
     raw = default_raw()
     raw["evaluation"][key] = value
     with pytest.raises(ValueError, match=message):
+        build_config(raw)
+
+
+def test_agent_section_reads_type_and_naive_settings():
+    agent = load_config().agent
+    assert agent.type == "naive"
+    assert (agent.naive.half_spread, agent.naive.quote_size) == (2, 5)
+
+
+def test_unknown_key_in_agent_section_is_rejected_by_name():
+    raw = default_raw()
+    raw["agent"]["naive"]["half_spred"] = 3
+    with pytest.raises(ValueError, match="'agent.naive.half_spred'"):
+        build_config(raw)
+
+
+def test_missing_agent_type_is_rejected_by_name():
+    raw = default_raw()
+    del raw["agent"]["type"]
+    with pytest.raises(ValueError, match="missing config key 'agent.type'"):
+        build_config(raw)
+
+
+def test_agent_type_must_be_a_string():
+    raw = default_raw()
+    raw["agent"]["type"] = 1
+    with pytest.raises(ValueError, match="'agent.type' must be a string"):
         build_config(raw)

@@ -26,13 +26,13 @@ def test_csv_has_one_row_per_scenario_and_seed(tmp_path):
     path = tmp_path / "episodes.csv"
     write_episodes_csv(run(), path)
     lines = path.read_text().splitlines()
-    assert lines[0].startswith("scenario,seed,final_pnl")
+    assert lines[0].startswith("agent,scenario,seed,final_pnl")
     assert len(lines) == 1 + len(SCENARIOS) * len(SEEDS)
 
 
 def test_report_and_plots_are_written(tmp_path):
     results = run()
-    write_report(results, STEPS, tmp_path / "report.md")
+    write_report([results], STEPS, tmp_path / "report.md")
     write_plots(results, tmp_path / "plots")
     report = (tmp_path / "report.md").read_text()
     assert "## Summary" in report and "## Markouts" in report

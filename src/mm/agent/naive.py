@@ -1,11 +1,11 @@
 """v0 baseline: a fixed symmetric spread around the last trade price, no inventory awareness."""
 
 from mm.agent.interface import Observation, Quote
-from mm.config import AgentConfig
+from mm.config import NaiveConfig
 
 
 class NaiveMarketMaker:
-    def __init__(self, config: AgentConfig) -> None:
+    def __init__(self, config: NaiveConfig) -> None:
         self._config = config
 
     def quote(self, obs: Observation) -> Quote:
