@@ -26,4 +26,11 @@ Held-out seeds 1000..1029, 2000 steps, informed share 0.15. Each column is one a
 
 ## Interpretation
 
-TBD
+| Matchup | Reading |
+|---|---|
+| Tight vs tight (v1 or v2 against v1) | Both makers lose money. They split the noise flow roughly 50/50 at 2 ticks, but each still takes informed flow, so neither earns enough spread to cover it (our PnL −5.17 and −6.86; the competitor's −3.98 and −3.65). |
+| Wide vs tight (v2-tuned against v1) | The 2-tick competitor is better priced most of the time, so it takes 79% of the volume. Our 4-tick agent fills far less (noise 493, informed 191 lots) and ends around zero (−0.37, CI includes 0), while the competitor makes +1.37. |
+| Wide vs wide (v2-tuned against v2-tuned) | An even split (50.1%) and both profitable (+5.91 and +5.77): the same edge per fill, half the volume. |
+| Tight vs wide (v1 or v2 against v2-tuned) | The tighter agent takes ~80% of the volume and makes a small profit (+1.70, +2.90), less than the wide agent makes in the even split. |
+
+The tuned 4-tick spread is the best choice when alone or facing an equally wide maker, but against a tighter competitor it loses most of its flow and its profit. A wider spread only pays if no one undercuts it. In a head-to-head tournament the spread has to respond to competition. The agent can see this without any book data: its own fills compared with the public trade prints give its share of the volume.
