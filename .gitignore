@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 .hypothesis/
 .DS_Store
-results/
+/results/
 .coverage
 .mypy_cache/
+.claude/

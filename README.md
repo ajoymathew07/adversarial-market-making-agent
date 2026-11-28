@@ -16,7 +16,8 @@ Requires Docker.
 make run
 ```
 
-This builds the image and runs the end-to-end demo. To run the tests:
+This builds the image, evaluates the agent on the held-out seeds in every scenario, prints a
+summary and writes `results/report.md`, `results/episodes.csv` and `results/plots/`. To run the tests:
 
 ```bash
 make test
@@ -57,7 +58,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pu
 - Run time: `make run` from a cold Docker cache finishes in under 3 minutes (`make run`)
 - Tests: the pytest suite inside Docker (`make test`)
 - Dependency consistency: `pip check` inside the image
-- Determinism: same seed gives identical output (planned once the simulator exists)
+- Determinism: a short evaluation run twice in Docker gives the same `episodes.csv` SHA-256 (`make determinism`)
 
 `make verify` runs all the static checks (repository checks, lint, type check, coverage) locally.
 

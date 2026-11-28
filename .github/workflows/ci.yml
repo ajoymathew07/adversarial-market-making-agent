@@ -48,6 +48,8 @@ jobs:
             echo "::error::make run took ${elapsed}s, over the 180 s limit"
             exit 1
           fi
+      - name: Determinism (two runs give the same episodes.csv digest)
+        run: make determinism
       - name: Tests in Docker
         run: make test
       - name: Dependency consistency

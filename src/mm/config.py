@@ -120,8 +120,27 @@ class RiskConfig:
 
 
 @dataclass(frozen=True)
+class EvalConfig:
+    dev_seeds: tuple[int, ...]  # for tuning
+    heldout_seeds: tuple[int, ...]  # only for reported numbers
+    markout_horizons: tuple[int, ...]  # steps after a fill
+    bootstrap_resamples: int
+    bootstrap_seed: int
+
+    def __post_init__(self) -> None:
+        if not self.dev_seeds or not self.heldout_seeds:
+            raise ValueError("seed ranges must not be empty")
+        if set(self.dev_seeds) & set(self.heldout_seeds):
+            raise ValueError("dev_seeds and heldout_seeds must not overlap")
+        if not self.markout_horizons or min(self.markout_horizons) < 0:
+            raise ValueError("markout_horizons must be non-empty and >= 0")
+        if self.bootstrap_resamples < 1:
+            raise ValueError("bootstrap_resamples must be >= 1")
+
+
+@dataclass(frozen=True)
 class SimConfig:
-    """Everything one episode needs, built from the config file."""
+    """Everything one episode (and the evaluation around it) needs, built from the config file."""
 
     instrument: InstrumentConfig
     engine: EngineConfig
@@ -130,6 +149,7 @@ class SimConfig:
     risk: RiskConfig
     n_steps: int
     seed: int
+    evaluation: EvalConfig
 
 
 def load_config(path: Path | None = None, scenario: str = "base") -> SimConfig:
@@ -154,6 +174,7 @@ def build_config(raw: dict[str, Any], scenario: str = "base") -> SimConfig:
         risk=_risk(root.get_table("risk")),
         n_steps=simulation.get_int("n_steps"),
         seed=simulation.get_int("seed"),
+        evaluation=_evaluation(root.get_table("evaluation")),
     )
     root.reject_unread()
     return config
@@ -244,6 +265,18 @@ def _risk(table: "_Table") -> RiskConfig:
     )
 
 
+def _evaluation(table: "_Table") -> EvalConfig:
+    dev_first, dev_last = table.get_int_pair("dev_seeds")
+    heldout_first, heldout_last = table.get_int_pair("heldout_seeds")
+    return EvalConfig(
+        dev_seeds=tuple(range(dev_first, dev_last + 1)),
+        heldout_seeds=tuple(range(heldout_first, heldout_last + 1)),
+        markout_horizons=table.get_int_list("markout_horizons"),
+        bootstrap_resamples=table.get_int("bootstrap_resamples"),
+        bootstrap_seed=table.get_int("bootstrap_seed"),
+    )
+
+
 class _Table:
     """One TOML table, read strictly: each key must exist with the expected type.
 
@@ -281,6 +314,12 @@ class _Table:
         if not (isinstance(value, list) and len(value) == 2 and all(map(_is_int, value))):
             raise ConfigError(f"{self._full(key)!r} must be [min, max] integers, got {value!r}")
         return int(value[0]), int(value[1])
+
+    def get_int_list(self, key: str) -> tuple[int, ...]:
+        value = self._get(key)
+        if not (isinstance(value, list) and all(map(_is_int, value))):
+            raise ConfigError(f"{self._full(key)!r} must be a list of integers, got {value!r}")
+        return tuple(int(v) for v in value)
 
     def reject_unread(self) -> None:
         if self._unread:

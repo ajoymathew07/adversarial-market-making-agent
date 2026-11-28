@@ -1,13 +1,27 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run test venv test-local lint typecheck coverage checks verify clean
+.PHONY: build run determinism test venv test-local lint typecheck coverage checks verify clean
 
 build:
 	docker build -t $(IMAGE) .
 
+# Results (report.md, episodes.csv, plots/) land in ./results on the host.
 run: build
-	docker run --rm $(IMAGE)
+	mkdir -p results
+	docker run --rm -v "$(CURDIR)/results:/app/results" $(IMAGE)
+
+# Run a short evaluation twice in the container; fail if the episodes.csv digests differ.
+DETERMINISM_ARGS := --seeds dev --scenarios base --steps 300 --out /tmp/determinism --digest
+determinism: build
+	@first=$$(docker run --rm $(IMAGE) python -m mm $(DETERMINISM_ARGS) | grep sha256); \
+	second=$$(docker run --rm $(IMAGE) python -m mm $(DETERMINISM_ARGS) | grep sha256); \
+	echo "run 1: $$first"; \
+	echo "run 2: $$second"; \
+	if [ -z "$$first" ] || [ "$$first" != "$$second" ]; then \
+		echo "determinism check failed"; exit 1; \
+	fi; \
+	echo "determinism check passed"
 
 test: build
 	docker run --rm $(IMAGE) python -m pytest -q
