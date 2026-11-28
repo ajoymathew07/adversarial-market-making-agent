@@ -200,4 +200,11 @@ Mean [95% CI] over seeds. ✔: the per-seed difference from the column's baselin
 
 ## Interpretation
 
-TBD
+| Question | Answer |
+|---|---|
+| Does toxicity-based widening (v3) help? | **No.** Tuned on dev with the base spread free, the best v3 sets c = 0, so it is the control. Every widening config scores lower on the worst case. |
+| Does the toxicity score detect informed flow? | **No.** Mean T falls as informed flow rises (no_informed 0.34 > base 0.18 > toxic 0.04). Within a scenario it correlates weakly and positively with the informed share, but not across scenarios. |
+| What does improve the agent? | **The base half-spread.** 2 ticks was a v0 choice, never tuned. At 4 ticks v2's Sharpe rises in every scenario, unseen ones included (base 1.10 → 3.23, realistic_mix 0.17 → 2.19, all ✔). |
+| Why does the wider spread help? | It keeps more edge per fill: informed lots fall by about 55% (528 → 241 in base), noise lots by about the same share, but each fill now earns 4 ticks instead of 2. At 2 ticks v2 even loses money with no informed takers (−0.92). |
+
+Two v3 designs failed: marking fills against the agent's own fair value (the filter moves it because of the fill), then marking the drift after the filter has absorbed the fill (the ordering is still reversed, cause not found). v3 is kept in the code as a documented negative result; v4 and v5 build on the tuned control (`kalman_tuned`).
