@@ -39,9 +39,10 @@ Held-out seeds 1000..1029, 2000 steps, informed share 0.15. Each column is one a
 
 | Matchup | Reading |
 |---|---|
-| Tight vs tight (v1 or v2 against v1) | Both makers lose money. They split the noise flow roughly 50/50 at 2 ticks, but each still takes informed flow, so neither earns enough spread to cover it (our PnL −5.17 and −6.86; the competitor's −3.98 and −3.65). |
-| Wide vs tight (v2-tuned against v1) | The 2-tick competitor is better priced most of the time, so it takes 79% of the volume. Our 4-tick agent fills far less (noise 493, informed 191 lots) and ends around zero (−0.37, CI includes 0), while the competitor makes +1.37. |
-| Wide vs wide (v2-tuned against v2-tuned) | An even split (50.1%) and both profitable (+5.91 and +5.77): the same edge per fill, half the volume. |
-| Tight vs wide (v1 or v2 against v2-tuned) | The tighter agent takes ~80% of the volume and makes a small profit (+1.70, +2.90), less than the wide agent makes in the even split. |
+| Tight vs tight (v1 or v2 against v1) | Both makers lose. They split the noise flow ~50/50 at 2 ticks, but each still takes informed flow (our PnL −5.17 and −6.86). |
+| Wide vs tight (v2-tuned or v5 against v1) | The 2-tick competitor takes 79–84% of the volume. Our wide agents end around zero (v2-tuned −0.37, v5 +0.50) while the competitor makes about +1.4–1.5. |
+| Wide vs wide (v2-tuned vs v2-tuned, v5 vs v5) | Both profitable: +5.91 / +5.77 and +6.92 / +7.33. |
+| Tight vs wide (v1 or v2 against v2-tuned or v5) | The tighter agent takes ~80% of the volume but earns little (+1.5 to +3.6); the wide competitor still profits. |
+| v2-tuned against v5 | v2-tuned keeps 61% of the volume and makes more PnL (9.31 vs 7.33); v5 has the higher Sharpe (2.51 vs 1.93). |
 
-The tuned 4-tick spread is the best choice when alone or facing an equally wide maker, but against a tighter competitor it loses most of its flow and its profit. A wider spread only pays if no one undercuts it. In a head-to-head tournament the spread has to respond to competition. The agent can see this without any book data: its own fills compared with the public trade prints give its share of the volume.
+A wide spread is the best choice alone or against equally wide makers, but a tighter rival takes most of its flow. The tight rival also absorbs the toxic flow at the front of the book, which is why it earns little. v6 (decision 13) tests whether narrowing in response helps.
