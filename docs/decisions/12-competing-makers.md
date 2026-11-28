@@ -20,8 +20,8 @@ registry from the same `[agent.*]` sections.
 | Takers | Unchanged: `match_ioc` fills best price, then FIFO, across owners. |
 | Base unchanged | `"none"` builds nothing extra and draws no extra numbers; the base digest is unchanged. |
 
-Scenarios: `vs_v1` (competitor `skew`, half-spread 2) and `vs_tuned` (competitor `kalman_tuned`,
-half-spread 4), otherwise base (15% informed).
+Scenarios: `vs_v1` (competitor `skew`, half-spread 2), `vs_tuned` (competitor `kalman_tuned`,
+half-spread 4) and `vs_final` (competitor `final`, v5 self-play), otherwise base (15% informed).
 
 The competitor's record is `EpisodeResult.competitor` (same format, same path) and
 `ScenarioResult.competitor_metrics`; `episodes.csv` keeps its columns and reports our agent only.
@@ -33,5 +33,5 @@ quotes, so it cannot see that it is being undercut except through fewer fills.
 
 ## Results
 
-`make competition` writes `docs/results/competition/heldout.md` (held-out seeds, skew, kalman and
-kalman_tuned in both scenarios).
+`make competition` writes `docs/results/competition/heldout.md` (held-out seeds, skew, kalman,
+kalman_tuned and final in all three scenarios).

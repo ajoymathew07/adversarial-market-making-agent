@@ -75,7 +75,8 @@ stress-tolerance:
 stress-realistic:
 	PYTHONPATH=src .venv/bin/python scripts/stress_realistic.py
 
-# skew, kalman and kalman_tuned against a competing maker (vs_v1, vs_tuned), held-out seeds;
+# skew, kalman, kalman_tuned and final against a competing maker (vs_v1, vs_tuned, vs_final),
+# held-out seeds;
 # writes docs/results/competition/heldout.md.
 competition:
 	PYTHONPATH=src .venv/bin/python scripts/competition.py

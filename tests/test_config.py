@@ -91,6 +91,7 @@ def test_scenario_names_follow_file_order():
         "realistic_mix",
         "vs_v1",
         "vs_tuned",
+        "vs_final",
     )
 
 

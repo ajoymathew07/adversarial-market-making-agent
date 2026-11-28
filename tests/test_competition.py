@@ -132,8 +132,8 @@ def reconciles(record: EpisodeResult) -> bool:
     return (position, cash) == (record.final_position, record.final_cash)
 
 
-@pytest.mark.parametrize("scenario", ["vs_v1", "vs_tuned"])
-@pytest.mark.parametrize("agent", ["skew", "kalman", "kalman_tuned"])
+@pytest.mark.parametrize("scenario", ["vs_v1", "vs_tuned", "vs_final"])
+@pytest.mark.parametrize("agent", ["skew", "kalman", "kalman_tuned", "final"])
 def test_full_episode_passes_the_monitor_for_both_makers(scenario, agent):
     cfg = load_config(scenario=scenario)
     cfg = replace(cfg, agent=replace(cfg.agent, type=agent), seed=1000)
@@ -171,7 +171,10 @@ def test_unknown_competitor_name_is_rejected():
         run_episode(bad)
 
 
-@pytest.mark.parametrize(("name", "competitor"), [("vs_v1", "skew"), ("vs_tuned", "kalman_tuned")])
+@pytest.mark.parametrize(
+    ("name", "competitor"),
+    [("vs_v1", "skew"), ("vs_tuned", "kalman_tuned"), ("vs_final", "final")],
+)
 def test_competition_scenarios_change_only_the_competitor(name, competitor):
     base = load_config()
     expected = replace(base, market=replace(base.market, competitor=competitor))

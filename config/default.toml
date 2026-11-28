@@ -137,3 +137,4 @@ realistic_mix    = { "market.noise.arrivals" = "regime", "market.noise.size_shap
 # Competing makers (decision 12): a second maker with its own account, gate and monitor; base otherwise.
 vs_v1    = { "market.competitor" = "skew" }           # v1, half-spread 2
 vs_tuned = { "market.competitor" = "kalman_tuned" }   # v2 with half-spread 4
+vs_final = { "market.competitor" = "final" }          # v5: self-play against the default agent

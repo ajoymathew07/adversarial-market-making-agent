@@ -1,6 +1,6 @@
 """Our agents against a competing maker, held-out seeds; writes docs/results/competition/heldout.md.
 
-Run with `make competition`. One table per scenario (vs_v1, vs_tuned), one column per agent of
+Run with `make competition`. One table per scenario (vs_v1, vs_tuned, vs_final), one column per agent of
 ours. Every agent and competitor uses `config/default.toml` as is (see docs/decisions/12).
 The ## Interpretation section is hand-written and kept across reruns.
 """
@@ -15,8 +15,13 @@ from mm.eval.report import format_estimate, format_markdown
 from mm.eval.runner import ScenarioResult, evaluate
 from mm.eval.stats import bootstrap_ci
 
-SCENARIOS = ("vs_v1", "vs_tuned")
-AGENTS = (("v1 (skew)", "skew"), ("v2 (kalman)", "kalman"), ("v2-tuned", "kalman_tuned"))
+SCENARIOS = ("vs_v1", "vs_tuned", "vs_final")
+AGENTS = (
+    ("v1 (skew)", "skew"),
+    ("v2 (kalman)", "kalman"),
+    ("v2-tuned", "kalman_tuned"),
+    ("v5 (final)", "final"),
+)
 OUT = Path("docs/results/competition")
 INTERPRETATION_HEADING = "## Interpretation"
 
