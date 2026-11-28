@@ -44,3 +44,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** the pipe made `tail`'s exit code the one that counted, so the push ran although `make verify` failed. The failure was environmental (matplotlib missing from the local venv), and the pushed tree was byte-identical to one that had already passed CI, but the rule from the earlier entry was broken.
 - **How it was caught:** the failing mypy output printed right above the push result.
 - **Fix:** the venv was reinstalled from `requirements.txt` and `make verify` passed (321 tests). Checks are now run on their own and their exit code read before any push.
+
+### 2026-11-28: v3's toxicity score measured the filter's own reaction
+- **What the AI produced:** the v3 design marked each fill against the agent's own fair value τ steps later, m = s·(fv(t+τ) − price), and widened the spread on the result.
+- **What was wrong:** the Kalman update moves fv against every fill as it absorbs it, so the score measured the filter's reaction, not taker information, and it ranked no_informed as the most toxic scenario. The 2-tick half-spread had never been tuned since v0 either, so any widening looked like a gain.
+- **How it was caught:** during implementation, mean T fell from no_informed to base to toxic (the reverse of the expected order), and a fixed-spread control run (v2 with half-spread 3) beat v3 on every training scenario.
+- **Fix:** markouts now run from the fair value right after the fill is absorbed, and v3 is tuned against a v2 control with its own tuned half-spread (`kalman_tuned`) on the same objective. v3 still does not beat the control (docs/decisions/09).

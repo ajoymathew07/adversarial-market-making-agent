@@ -5,46 +5,56 @@
 Widening the spread when the agent's recent fills keep going against it reduces adverse
 selection by more than it costs in spread capture.
 
-## Mechanism
+## First version and why it failed
 
-v3 is v2 (Kalman fair value, v1 skew, `[agent.skew]`) with one change: the half-spread.
+It marked each fill against the agent's own fair value τ steps later: m = s·(fv(t+τ) − price).
+The Kalman update moves fv against every fill as it absorbs it, so the score measured the
+filter's own reaction rather than taker information, and it ranked no_informed as the most toxic.
+
+## Mechanism (corrected)
+
+v3 is v2 (Kalman fair value, v1 skew) with its own half-spread. A fill made in step s first
+arrives in observation s + 1; the fv after that observation's update is the reference.
 
 ```
-m = s · (fv(t_fill + τ) − price)        per-lot markout in ticks; s = +1 buy, −1 sell
-a ← d^w · a + (1 − d^w) · m             each fill of w lots once τ steps have passed
-d = 0.5^(1 / ewma_halflife),  a₀ = 0
-T = max(0, −a)                          toxicity score, ticks
+m = s · (fv(s + 1 + τ) − fv(s + 1))     ticks per lot; s = +1 buy, −1 sell
+a ← d^w · a + (1 − d^w) · m             each fill of w lots once matured; a₀ = 0
+d = 0.5^(1 / ewma_halflife)
+T = max(0, −a)
 half_spread = clip(round_half_away(base + c · T), base, max_half_spread)
 bid, ask = r ∓ half_spread              r = v2's reservation price, unchanged
 ```
 
-Fills younger than τ steps are pending and not scored. The update weights lot by lot, so an old
-markout's weight halves every `ewma_halflife` lots of matured fills. Starting at a = 0 means no
-evidence of toxicity at the open; the score restarts each episode. With c = 0, v3 is v2 exactly
-(tested).
+Only drift after the filter has absorbed the fill counts. Both sides widen equally, because
+direction is already in fv and the skew. No size signal: our fills are censored at the quote
+size, the signal vanishes once acted on (an informed trader splits its orders), and it would
+overfit the simulator's sizes; BTCUSDT shows size is a weak, non-monotone signal
+(`docs/results/realism/`).
 
-## Why these choices
+## Control requirement
 
-| Choice | Why | Rejected |
+The 2-tick half-spread had never been tuned, so any widening could look like a gain. The
+control is v2 with its own tuned half-spread (`kalman_tuned`, `[agent.kalman_tuned]`; v1 and
+v2 keep `[agent.skew]`). `make sweep-toxicity`, dev seeds 0–29, training scenarios no_informed,
+base, toxic, objective = worst-case mean Sharpe:
+
+- control: half_spread ∈ {2, 3, 4, 5, 6};
+- v3: base_half_spread ∈ {2, …, 6} × τ ∈ {5, 10, 20, 40} × c ∈ {0, 0.5, 1, 2, 4, 8}.
+
+v3 counts as working only if its best beats the control's best.
+
+## Verdict: no
+
+| | Chosen | Worst-case Sharpe (dev) |
 |---|---|---|
-| Markout against the agent's own later fv | The agent sees no true value and no taker labels; its fv is its best view of where the price went | True-value markout (a leak); taker kind (not observable) |
-| Both sides widen equally | Toxicity says "fills are bad", not which way the value moves; direction is already in fv and the skew | One-sided widening (doubles up on fv's signal) |
-| No size signal | Our fills are censored at the quote size; it vanishes once acted on (an informed trader just splits its orders); it would overfit the simulator's 5–10 lot informed sizes. BTCUSDT shows size is a weak, non-monotone signal (`docs/results/realism/`) | Widen on large fills |
+| Control | half_spread = 4 | 2.64 |
+| v3 | base 4, τ = 5, c = 0 | 2.64 (identical: c = 0 is the control) |
+| Best v3 with c > 0 | base 4, τ = 5, c = 0.5 | 2.61 |
 
-## Tuning
+Any widening lowers the worst case once the base spread is tuned. Detection also fails: mean T
+on dev is 0.35 (no_informed) > 0.17 (base) > 0.05 (toxic), and across those 90 episodes its
+correlation with the informed share of our lots is −0.83 (+0.45 within base, +0.26 within toxic).
+Frozen values: `[agent.kalman_tuned] half_spread = 4`; `[agent.toxicity]` base 4, τ = 5, c = 0.
+`ewma_halflife = 50` lots and `max_half_spread = 8` were not tuned and remain open choices.
 
-`make sweep-toxicity`: τ ∈ {5, 10, 20} × c ∈ {0, 0.5, 1, 2, 4, 8} on dev seeds 0–29, training
-scenarios no_informed, base, toxic. Objective: the worst-case mean Sharpe of the three; ties go
-to the first row. Result in `docs/results/v3-toxicity/dev-sweep.md`.
-
-## Values
-
-| Key | Value | Source |
-|---|---|---|
-| markout_horizon (τ) | 20 steps | dev sweep (worst-case Sharpe 0.71; c = 0 gives −0.05) |
-| widen_per_tick (c) | 4 | dev sweep |
-| ewma_halflife | 50 lots | a choice, not tuned; v5 searches it |
-| max_half_spread | 8 ticks | a choice, not tuned |
-
-Held-out results (seeds 1000–1029, every scenario): `docs/results/v3-toxicity/heldout.md`
-(`make v3-experiments`).
+Results: `docs/results/v3-toxicity/dev-sweep.md`, held-out `docs/results/v3-toxicity/heldout.md`.
