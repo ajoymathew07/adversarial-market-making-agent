@@ -54,7 +54,8 @@ def roomy(cfg: SimConfig) -> SimConfig:
 
 
 def test_base_digest_is_unchanged(tmp_path, capsys):
-    main(["--seeds", "dev", "--scenarios", "base", "--steps", "300", "--out", str(tmp_path)])
+    args = ["--agents", "skew", "--seeds", "dev", "--scenarios", "base", "--steps", "300"]
+    main([*args, "--out", str(tmp_path)])
     assert file_digest(tmp_path / "episodes.csv") == BASE_DIGEST
 
 
