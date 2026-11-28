@@ -1,5 +1,6 @@
 """Quoting strategies, the interface they implement and the registry that builds them by name."""
 
+from mm.agent.adaptive import AdaptiveMarketMaker
 from mm.agent.calibration import CalibrationMarketMaker
 from mm.agent.interface import Agent, Observation, OwnFill, Quote, Trade
 from mm.agent.kalman import KalmanMarketMaker
@@ -10,6 +11,7 @@ from mm.agent.toxicity import ToxicityMarketMaker
 
 __all__ = [
     "AGENT_NAMES",
+    "AdaptiveMarketMaker",
     "Agent",
     "CalibrationMarketMaker",
     "InventorySkewMarketMaker",
