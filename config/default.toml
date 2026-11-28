@@ -105,7 +105,11 @@ markout_horizon = 5             # tau; fixed at v3's chosen value
 ewma_halflife = 50.0            # lots; a choice, not tuned (as v3)
 
 # [agent.competitive] v6 (decision 13): v5's knobs, copied from [agent.final], plus the
-# volume-share undercut. Values to be frozen from make sweep-competitive.
+# volume-share undercut. base_half_spread, undercut_per_share, min_half_spread and
+# share_halflife from make sweep-competitive, 2026-11-28 (dev seeds, worst-case Sharpe over
+# no_informed/base/toxic/vs_v1; docs/results/v6-competitive/dev-sweep.md). The argmax is d = 0,
+# i.e. v5 itself: every d > 0 lost Sharpe in vs_v1, so v6 quotes exactly as v5 (min and
+# half-life are then unused; they keep the grid's first values).
 [agent.competitive]             # v6: v5 + base half-spread narrowed when its volume share falls
 base_half_spread = 5            # ticks, when alone (share = 1)
 skew_per_lot = 0.2              # as [agent.final]
@@ -118,7 +122,7 @@ max_half_spread = 8             # as [agent.final]
 widen_per_tick = 1.0            # as [agent.final]
 markout_horizon = 5             # as [agent.final]
 ewma_halflife = 50.0            # as [agent.final]
-share_halflife = 200.0          # steps of the own-lots and public-lots EWMAs
+share_halflife = 50.0           # steps of the own-lots and public-lots EWMAs
 undercut_per_share = 0.0        # d: base ticks removed per unit of (1 - share); 0 = v5
 min_half_spread = 2             # ticks; the effective base never goes below this
 

@@ -1,6 +1,6 @@
 """v1 | v2 | v2-tuned | v4 | v5 on every scenario, held-out seeds, run once.
 
-Writes docs/results/v5-final/heldout.md and docs/results/summary.md. Run with
+Writes docs/results/v5-final/heldout.md (docs/results/summary.md: make v6-experiments). Run with
 `make v5-experiments` after `make tune` froze [agent.final]. Every agent uses
 `config/default.toml` as is. ✔ is paired per seed on identical markets against each column's
 baseline (COLUMNS); v5's is against v2-tuned. Also the overfitting check: dev worst-case Sharpe
@@ -12,7 +12,6 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from mm.config import load_config, scenario_names
-from mm.eval.compare import is_significant, paired_estimate
 from mm.eval.heldout import (
     Column,
     Run,
@@ -32,7 +31,6 @@ COLUMNS = (
     Column("v4 (adaptive)", "adaptive", 2),
     Column("v5 (final)", "final", 2),
 )
-SHORT = ("v1", "v2", "v2-tuned", "v4", "v5")
 EXTRA = (
     ("lots_informed", "Informed lots filled / episode"),
     ("lots_noise", "Noise lots filled / episode"),
@@ -41,7 +39,6 @@ EXTRA = (
 )
 OVERFIT = ("kalman_tuned", "adaptive", "final")
 HELDOUT = Path("docs/results/v5-final/heldout.md")
-SUMMARY = Path("docs/results/summary.md")
 
 
 def scenario_runs(scenario: str) -> list[Run]:
@@ -54,29 +51,6 @@ def dev_worst_case(agent: str) -> float:
     config = load_config()
     results = evaluate(TRAINING, config.evaluation.dev_seeds, config.n_steps, agent=agent)
     return min(estimate(r, "sharpe").mean for r in results)
-
-
-def summary_table(names: tuple[str, ...], all_runs: list[list[Run]]) -> list[list[str]]:
-    """Mean Sharpe and Final PnL per agent and scenario; ✔ on v5 against v2-tuned."""
-    rows = [
-        [
-            "Scenario",
-            *(f"Sharpe {s}" for s in SHORT),
-            *(f"Final PnL {s}" for s in SHORT),
-        ]
-    ]
-    control, v5 = 2, len(COLUMNS) - 1
-    for scenario, runs in zip(names, all_runs, strict=True):
-        cells = []
-        for column in ("sharpe", "final_pnl"):
-            for i, run in enumerate(runs):
-                cell = f"{estimate(run[0], column).mean:.2f}"
-                if i == v5 and is_significant(paired_estimate(run[0], runs[control][0], column)):
-                    cell += f" {SIGNIFICANT}"
-                cells.append(cell)
-        kind = "" if scenario in TRAINING else " (unseen)"
-        rows.append([scenario + kind, *cells])
-    return rows
 
 
 def main() -> None:
@@ -133,17 +107,7 @@ def main() -> None:
         sections += [f"## {scenario} ({kind})", format_markdown(side_by_side(runs, COLUMNS, EXTRA))]
     write_with_interpretation(HELDOUT, "\n\n".join(sections))
 
-    summary = [
-        "# Results summary (held-out seeds)",
-        (
-            f"Mean over held-out seeds {seeds[0]}..{seeds[-1]}, {config.n_steps} steps. "
-            f"{SIGNIFICANT} on v5: its per-seed difference from v2-tuned has a 95% CI that "
-            "excludes 0. Full tables with CIs: `docs/results/v5-final/heldout.md`."
-        ),
-        format_markdown(summary_table(names, all_runs)),
-    ]
-    SUMMARY.write_text("\n\n".join(summary) + "\n", encoding="utf-8")
-    print(f"Wrote {HELDOUT} and {SUMMARY}")
+    print(f"Wrote {HELDOUT}")
 
 
 if __name__ == "__main__":
