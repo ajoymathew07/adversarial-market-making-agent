@@ -50,3 +50,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** the Kalman update moves fv against every fill as it absorbs it, so the score measured the filter's reaction, not taker information, and it ranked no_informed as the most toxic scenario. The 2-tick half-spread had never been tuned since v0 either, so any widening looked like a gain.
 - **How it was caught:** during implementation, mean T fell from no_informed to base to toxic (the reverse of the expected order), and a fixed-spread control run (v2 with half-spread 3) beat v3 on every training scenario.
 - **Fix:** markouts now run from the fair value right after the fill is absorbed, and v3 is tuned against a v2 control with its own tuned half-spread (`kalman_tuned`) on the same objective. v3 still does not beat the control (docs/decisions/09).
+
+### 2026-11-28: A test read a file that isn't in the Docker image
+- **What the AI produced:** v5's test of the `make run` agent list parsed the `Dockerfile`'s `CMD` line.
+- **What was wrong:** the image copies only `config/`, `src/` and `tests/`, so the test passed locally and in CI's static job but failed in `make test` inside Docker (`FileNotFoundError: /app/Dockerfile`). The assistant verified the branch with the local suite only.
+- **How it was caught:** the Docker CI job on PR #23 failed.
+- **Fix:** the test skips when the Dockerfile is absent (it still runs in the static job). Final verification now includes `make test` in Docker.

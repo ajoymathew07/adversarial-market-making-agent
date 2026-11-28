@@ -80,6 +80,9 @@ def test_registry_builds_the_final_agent_and_it_is_the_default():
     assert isinstance(make_agent(CONFIG), AdaptiveMarketMaker)
 
 
+@pytest.mark.skipif(
+    not DOCKERFILE.exists(), reason="the Dockerfile is not copied into the image; CI's static job runs this"
+)
 def test_make_run_evaluates_v1_v2_v2_tuned_and_v5_with_v1_as_baseline():
     cmd_line = next(line for line in DOCKERFILE.read_text().splitlines() if line.startswith("CMD"))
     command = json.loads(cmd_line.removeprefix("CMD").strip())
