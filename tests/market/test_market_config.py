@@ -48,10 +48,9 @@ def test_config_rejects_out_of_range_values(part, bad):
         replace(getattr(BASE, part), **bad)
 
 
-def test_informed_scenarios_differ_only_in_informed_share():
+def test_scenarios_differ_only_in_informed_share():
     base = load_config()
-    names = [n for n in scenario_names() if load_config(scenario=n).market.noise == BASE.noise]
-    shares = {name: load_config(scenario=name).market.informed.share for name in names}
+    shares = {name: load_config(scenario=name).market.informed.share for name in scenario_names()}
     assert shares == {"no_informed": 0.0, "base": 0.15, "toxic": 0.40}
     for name, share in shares.items():
         informed = replace(base.market.informed, share=share)

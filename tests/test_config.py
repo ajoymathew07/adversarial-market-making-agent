@@ -1,5 +1,4 @@
 import tomllib
-from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -79,13 +78,7 @@ def test_every_scenario_loads(name):
 
 
 def test_scenario_names_follow_file_order():
-    assert scenario_names() == (
-        "no_informed",
-        "base",
-        "toxic",
-        "uniform_takers",
-        "heavy_tail_takers",
-    )
+    assert scenario_names() == ("no_informed", "base", "toxic")
 
 
 def test_scenario_override_replaces_only_its_key():
@@ -94,37 +87,6 @@ def test_scenario_override_replaces_only_its_key():
     config = build_config(raw, "calm")
     assert config.market.true_value.sigma == 0.5
     assert config.market.informed == load_config().market.informed
-
-
-def test_scenario_override_can_set_a_string_value():
-    raw = default_raw()
-    raw["scenarios"]["flat"] = {"market.noise.tolerance": "uniform"}
-    config = build_config(raw, "flat")
-    assert config.market.noise.tolerance == "uniform"
-    assert config.market.informed == load_config().market.informed
-
-
-@pytest.mark.parametrize(
-    ("name", "shape"), [("uniform_takers", "uniform"), ("heavy_tail_takers", "lognormal")]
-)
-def test_tolerance_scenarios_change_only_the_tolerance_shape(name, shape):
-    base = load_config()
-    noise = replace(base.market.noise, tolerance=shape)
-    assert load_config(scenario=name) == replace(base, market=replace(base.market, noise=noise))
-
-
-def test_unknown_tolerance_shape_is_rejected_naming_the_valid_ones():
-    raw = default_raw()
-    raw["market"]["noise"]["tolerance"] = "gaussian"
-    with pytest.raises(ValueError, match="'gaussian'; valid: exponential, uniform, lognormal"):
-        build_config(raw)
-
-
-def test_tolerance_shape_must_be_a_string():
-    raw = default_raw()
-    raw["market"]["noise"]["tolerance"] = 1.0
-    with pytest.raises(ValueError, match="'market.noise.tolerance' must be a string"):
-        build_config(raw)
 
 
 def test_unknown_scenario_is_rejected_by_name():

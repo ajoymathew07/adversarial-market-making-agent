@@ -40,25 +40,7 @@ Set in `config/default.toml` (`[instrument]`, `[market.*]`); the base values are
 | Informed share / size | 15% / 5–10 lots |
 | Informed lookahead / edge | 10 steps / 1 tick |
 
-Scenarios `no_informed`, `base` and `toxic` differ only in informed share (0%, 15%, 40%);
-`uniform_takers` and `heavy_tail_takers` change only the noise tolerance shape (below). Each is
+Scenarios differ only in informed share: `no_informed` 0%, `base` 15%, `toxic` 40%. Each is
 an override table under `[scenarios]` in `config/default.toml`.
 
 The agent never sees V or a taker's kind; only the simulation loop and evaluation read them.
-
-## Stress scenarios: taker tolerance shape
-
-The v2 agent assumes takers reach a quote δ ticks from V at a rate proportional to e^(−kδ), which
-is the shape the base simulator draws noise-taker tolerance from, so the shape is right by
-construction (its parameters are estimated on base dev seeds, decision 07, and not re-estimated
-per scenario: the agent does not know the scenario). Two scenarios
-change only that shape (`[market.noise] tolerance`), keeping the mean tolerance at 1/k and the
-informed share at 15%, to test whether the agents' assumption is a robust approximation:
-
-| Shape | Tolerance | What it stresses |
-|-------|-----------|------------------|
-| `exponential` (default) | Exponential(rate k) | nothing; the agents' own model |
-| `uniform` (`uniform_takers`) | Uniform(0, 2/k) | hard cutoff: fill probability 1 − δk/2, zero beyond 2/k ≈ 3.3 ticks |
-| `lognormal` (`heavy_tail_takers`) | LogNormal(μ, 1), μ = ln(1/k) − ½ | heavy tail: a few takers accept very bad prices |
-
-The limit price is still `floor(V + tol)` / `ceil(V − tol)`; the agents are unchanged.

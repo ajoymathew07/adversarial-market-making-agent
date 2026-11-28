@@ -19,9 +19,6 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "default.
 # The noise-taker fill probability is calibrated at this distance from the true value.
 FILL_PROB_REFERENCE_TICKS = 2.0
 
-# Shapes of the noise-taker price tolerance; all have mean 1/k (see mm.market.takers).
-TOLERANCE_SHAPES = ("exponential", "uniform", "lognormal")
-
 
 class ConfigError(ValueError):
     """The config file has an unknown, missing or wrongly typed key."""
@@ -63,15 +60,10 @@ class NoiseConfig:
     size_min: int
     size_max: int
     fill_prob_at_2_ticks: float
-    tolerance: str  # one of TOLERANCE_SHAPES
 
     def __post_init__(self) -> None:
         if self.rate < 0:
             raise ValueError("noise rate must be >= 0")
-        if self.tolerance not in TOLERANCE_SHAPES:
-            raise ValueError(
-                f"unknown noise tolerance {self.tolerance!r}; valid: {', '.join(TOLERANCE_SHAPES)}"
-            )
         if not 1 <= self.size_min <= self.size_max:
             raise ValueError("noise sizes must satisfy 1 <= min <= max")
         if not 0 < self.fill_prob_at_2_ticks < 1:
@@ -325,7 +317,6 @@ def _market(table: "_Table") -> MarketConfig:
             size_min=noise_min,
             size_max=noise_max,
             fill_prob_at_2_ticks=noise.get_float("fill_prob_at_2_ticks"),
-            tolerance=noise.get_str("tolerance"),
         ),
         informed=InformedConfig(
             share=informed.get_float("share"),

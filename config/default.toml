@@ -15,7 +15,6 @@ sigma = 1.0                     # std of each step's move, in ticks
 rate = 1.0                      # mean arrivals per step (Poisson)
 size = [1, 5]                   # lots, uniform inclusive
 fill_prob_at_2_ticks = 0.30     # sets how price-sensitive they are
-tolerance = "exponential"       # shape of their price tolerance: exponential, uniform, lognormal
 
 [market.informed]
 share = 0.15                    # fraction of all takers
@@ -70,5 +69,3 @@ sigma_lag = 50                  # steps between trade prices for sigma; dilutes 
 no_informed = { "market.informed.share" = 0.0 }
 base        = {}
 toxic       = { "market.informed.share" = 0.40 }
-uniform_takers    = { "market.noise.tolerance" = "uniform" }     # same mean, hard cutoff at 2/k
-heavy_tail_takers = { "market.noise.tolerance" = "lognormal" }   # same mean, a few accept bad prices
