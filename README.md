@@ -29,6 +29,8 @@ Without Docker (Python 3.13 recommended):
 make venv && make test-local
 ```
 
+Realism check of the simulated taker flow against one day of Binance BTCUSDT trades (not part of `make run`; writes `docs/results/realism/`): `make realism-data && make realism`.
+
 ## Repository layout
 
 ```
