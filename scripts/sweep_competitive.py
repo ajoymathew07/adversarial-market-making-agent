@@ -61,12 +61,12 @@ class Candidate:
 
 
 KNOB_LABELS = ("d", "Min", "Half-life", "Base")
-FIRST = GRID["min_half_spread"][0], GRID["share_halflife"][0]
+FIRST = int(GRID["min_half_spread"][0]), float(GRID["share_halflife"][0])
 
 
 def control() -> Candidate:
     """v5: d = 0 at v5's base (the minimum and half-life are then unused)."""
-    return Candidate(0.0, *FIRST, load_config().agent.final.base_half_spread)
+    return Candidate(0.0, FIRST[0], FIRST[1], load_config().agent.final.base_half_spread)
 
 
 def candidates() -> list[Candidate]:
