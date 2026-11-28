@@ -2,6 +2,7 @@ import inspect
 import math
 import tomllib
 from dataclasses import replace
+from typing import Any
 
 import pytest
 
@@ -215,7 +216,7 @@ def test_registry_builds_the_toxicity_agent():
     assert isinstance(make_agent(episode_config()), ToxicityMarketMaker)
 
 
-def raw_config() -> dict:
+def raw_config() -> dict[str, Any]:
     return tomllib.loads(DEFAULT_CONFIG_PATH.read_text())
 
 
