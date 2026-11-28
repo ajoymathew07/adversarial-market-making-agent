@@ -66,7 +66,7 @@ class EpisodeResult:
 def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
     """Run one episode. Without an agent, the one named by config.agent.type is built."""
     if agent is None:
-        agent = make_agent(config.agent)
+        agent = make_agent(config)
     rng = np.random.Generator(np.random.PCG64(config.seed))
     initial_value = config.instrument.initial_price_ticks
     path = generate_value_path(config.market, initial_value, config.n_steps, rng)

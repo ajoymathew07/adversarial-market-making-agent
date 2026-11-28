@@ -14,7 +14,7 @@ from mm.agent.kalman import (
     steady_state,
     symmetric_steady_state,
 )
-from mm.config import DEFAULT_CONFIG_PATH, build_config, load_config
+from mm.config import DEFAULT_CONFIG_PATH, KalmanConfig, build_config, load_config
 from mm.simulation import run_episode
 from mm.types import Side
 
@@ -51,8 +51,10 @@ def warmed_filter(steps: int = 5) -> KalmanFairValue:
 
 
 def test_theory_steady_state_matches_the_hand_numbers():
-    state = symmetric_steady_state(KALMAN, half_spread=2)
-    flow = expected_flow(KALMAN, 0.0, -2, 2)
+    # Round textbook values (σ = λ = 1, sizes uniform 1..5, e^(−2k) = 0.3), not the config's.
+    textbook = KalmanConfig(1.0, 1.0, 3.0, 11.0, k=-math.log(0.30) / 2, gain_scale=1.0)
+    state = symmetric_steady_state(textbook, half_spread=2)
+    flow = expected_flow(textbook, 0.0, -2, 2)
     assert flow.slope == pytest.approx(0.54, abs=0.005)  # λ s̄ k e^(−2k)
     assert flow.variance == pytest.approx(3.3)  # λ E[s²] e^(−2k)
     assert state.gain == pytest.approx(0.47, abs=0.01)
@@ -104,7 +106,7 @@ def test_flow_equal_to_the_skewed_expectation_does_not_move_fair_value():
     # The same flow read against symmetric quotes would have moved fv up.
     naive = warmed_filter()
     naive.update(expected.mean, CENTRE - 2, CENTRE + 2)
-    assert naive.value > CENTRE + 0.5
+    assert naive.value > CENTRE + 0.25
 
 
 def test_missing_side_contributes_nothing():
@@ -173,7 +175,7 @@ def test_agent_restarts_its_filter_at_step_zero():
 
 @pytest.mark.parametrize("half_spread", [1, 2, 5])
 def test_quotes_never_self_cross(half_spread):
-    agent = KalmanMarketMaker(replace(SKEW, half_spread=half_spread, gamma=0.05), KALMAN)
+    agent = KalmanMarketMaker(replace(SKEW, half_spread=half_spread, skew_per_lot=0.5), KALMAN)
     agent.quote(observation(step=0, posted=(None, None)))
     for position in range(-50, 51, 5):
         for n in (-10, 0, 10):
@@ -213,14 +215,14 @@ def test_full_episode_is_deterministic():
 
 def test_registry_has_kalman_and_default_type_stays_skew():
     assert "kalman" in AGENT_NAMES
-    assert isinstance(make_agent(replace(CONFIG.agent, type="kalman")), KalmanMarketMaker)
+    config = replace(CONFIG, agent=replace(CONFIG.agent, type="kalman"))
+    assert isinstance(make_agent(config), KalmanMarketMaker)
     assert CONFIG.agent.type == "skew"
 
 
-def test_kalman_config_loads_and_derives_k():
-    assert (KALMAN.sigma, KALMAN.noise_rate, KALMAN.gain_scale) == (1.0, 1.0, 1.0)
-    assert (KALMAN.mean_size, KALMAN.mean_size_sq) == (3.0, 11.0)
-    assert KALMAN.k == pytest.approx(-math.log(0.30) / 2)
+def test_kalman_config_loads_the_calibrated_values():
+    assert (KALMAN.sigma, KALMAN.noise_rate, KALMAN.k, KALMAN.gain_scale) == (1.04, 1.01, 0.38, 1.0)
+    assert (KALMAN.mean_size, KALMAN.mean_size_sq) == (3.5, 16.44)
 
 
 @pytest.mark.parametrize(
@@ -230,7 +232,7 @@ def test_kalman_config_loads_and_derives_k():
         ("noise_rate", 0.0, "noise_rate must be > 0"),
         ("mean_size", 0.0, "mean_size must be > 0"),
         ("mean_size_sq", 8.0, "mean_size_sq must be >= mean_size"),
-        ("fill_prob_at_2_ticks", 1.0, r"fill_prob_at_2_ticks must be in \(0, 1\)"),
+        ("k", 0.0, "k must be > 0"),
         ("gain_scale", -0.5, "gain_scale must be >= 0"),
     ],
 )

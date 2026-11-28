@@ -207,11 +207,9 @@ def test_agent_type_must_be_a_string():
         build_config(raw)
 
 
-def test_skew_section_loads_with_derived_skew_per_lot():
+def test_skew_section_loads_one_tuned_skew_per_lot():
     skew = load_config().agent.skew
-    assert (skew.half_spread, skew.quote_size, skew.horizon) == (2, 5, 10)
-    assert (skew.gamma, skew.sigma) == (0.005, 1.0)
-    assert skew.skew_per_lot == pytest.approx(0.05)
+    assert (skew.half_spread, skew.quote_size, skew.skew_per_lot) == (2, 5, 0.05)
 
 
 @pytest.mark.parametrize(
@@ -219,9 +217,7 @@ def test_skew_section_loads_with_derived_skew_per_lot():
     [
         ("half_spread", 0, "half_spread must be >= 1"),
         ("quote_size", 0, "quote_size must be >= 1"),
-        ("gamma", -0.01, "gamma must be >= 0"),
-        ("sigma", -1.0, "sigma must be >= 0"),
-        ("horizon", 0, "horizon must be >= 1"),
+        ("skew_per_lot", -0.01, "skew_per_lot must be >= 0"),
     ],
 )
 def test_skew_validation_fires(key, value, message):
@@ -233,6 +229,31 @@ def test_skew_validation_fires(key, value, message):
 
 def test_missing_skew_key_is_rejected_by_name():
     raw = default_raw()
-    del raw["agent"]["skew"]["gamma"]
-    with pytest.raises(ValueError, match="missing config key 'agent.skew.gamma'"):
+    del raw["agent"]["skew"]["skew_per_lot"]
+    with pytest.raises(ValueError, match="missing config key 'agent.skew.skew_per_lot'"):
         build_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("table", "key", "value", "message"),
+    [
+        (("agent", "calibration"), "distances", [0, 5], "distances must satisfy 1 <= min <= max"),
+        (("agent", "calibration"), "distances", [4, 2], "distances must satisfy 1 <= min <= max"),
+        (("calibration",), "sigma_lag", 0, "sigma_lag must be >= 1"),
+    ],
+)
+def test_calibration_validation_fires(table, key, value, message):
+    raw = default_raw()
+    section = raw
+    for part in table:
+        section = section[part]
+    section[key] = value
+    with pytest.raises(ValueError, match=message):
+        build_config(raw)
+
+
+def test_calibration_sections_load():
+    config = load_config()
+    agent = config.agent.calibration
+    assert (agent.min_distance, agent.max_distance, agent.rng_stream) == (1, 5, 1)
+    assert config.calibration.sigma_lag == 50

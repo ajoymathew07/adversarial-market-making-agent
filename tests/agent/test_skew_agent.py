@@ -26,8 +26,7 @@ def observation(position: int, last_trade_price: int = CENTRE) -> Observation:
 
 
 def with_skew_per_lot(skew_per_lot: float) -> InventorySkewMarketMaker:
-    # sigma = 1 and horizon = 1, so gamma is the skew per lot.
-    return InventorySkewMarketMaker(replace(DEFAULT, gamma=skew_per_lot, sigma=1.0, horizon=1))
+    return InventorySkewMarketMaker(replace(DEFAULT, skew_per_lot=skew_per_lot))
 
 
 def test_flat_position_quotes_like_the_naive_agent():
@@ -70,7 +69,7 @@ def test_shift_is_position_times_skew_rounded_halves_away_from_zero(
 @pytest.mark.parametrize("half_spread", [1, 2, 5])
 @pytest.mark.parametrize("skew_per_lot", [0.0, 0.1, 0.37, 0.5, 2.0])
 def test_quotes_never_self_cross(half_spread, skew_per_lot):
-    config = replace(DEFAULT, half_spread=half_spread, gamma=skew_per_lot, sigma=1.0, horizon=1)
+    config = replace(DEFAULT, half_spread=half_spread, skew_per_lot=skew_per_lot)
     agent = InventorySkewMarketMaker(config)
     for position in range(-50, 51):
         quote = agent.quote(observation(position))
@@ -83,10 +82,10 @@ def test_sizes_are_not_skewed():
     assert (quote.bid_size, quote.ask_size) == (DEFAULT.quote_size, DEFAULT.quote_size)
 
 
-def test_zero_gamma_episode_is_identical_to_the_naive_episode():
+def test_zero_skew_episode_is_identical_to_the_naive_episode():
     config = replace(load_config(scenario="toxic"), n_steps=500)
     naive = run_episode(config, NaiveMarketMaker(config.agent.naive))
-    skew = run_episode(config, InventorySkewMarketMaker(replace(config.agent.skew, gamma=0.0)))
+    skew = run_episode(config, InventorySkewMarketMaker(replace(config.agent.skew, skew_per_lot=0.0)))
     assert skew.fills == naive.fills
     assert skew.steps == naive.steps
     assert skew.final_pnl == naive.final_pnl

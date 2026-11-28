@@ -4,7 +4,7 @@ v2 changes one thing from v1: the centre it quotes around. v1 centres on the las
 which is always its own bid or ask. v2 estimates the true value from the signed flow that hits
 its quotes. It uses only the Observation, never V or taker kinds.
 
-Model (the agent's own assumptions, `[agent.kalman]`):
+Model (the agent's own estimates, `[agent.kalman]`, from `make calibrate` on dev seeds):
     true value   V(t) = V(t-1) + N(0, σ²)                         random walk
     signal       n = taker-buy lots − taker-sell lots against us in the previous step
                    = lots we sold − lots we bought
@@ -19,6 +19,9 @@ Linearising h around the estimate fv gives one (extended) Kalman step:
     predict  P ← P + σ²
     gain     K = P·H / (H²·P + R)
     update   fv ← fv + K·(n − h(fv)),   P ← (1 − K·H)·P
+
+Start: fv = the opening price and P = 0. This is a choice: the opening price is public (like a
+published valuation), so the agent starts certain of V(0); P then grows by σ² per step.
 """
 
 import math
@@ -59,7 +62,10 @@ def expected_flow(
 
 
 class KalmanFairValue:
-    """The filter alone: fair value `value` (ticks) and its variance, updated once per step."""
+    """The filter alone: fair value `value` (ticks) and its variance, updated once per step.
+
+    The variance starts at 0 because the initial value is the public opening price.
+    """
 
     def __init__(self, config: KalmanConfig, initial_value: float) -> None:
         self._config = config

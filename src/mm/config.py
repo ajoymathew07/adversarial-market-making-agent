@@ -116,37 +116,26 @@ class NaiveConfig:
 class SkewConfig:
     half_spread: int  # ticks from the reservation price to each quote
     quote_size: int  # lots on each side
-    gamma: float  # risk aversion
-    sigma: float  # the agent's own assumed volatility, ticks per step (not the market's)
-    horizon: int  # steps over which inventory risk is counted (tau)
+    skew_per_lot: float  # ticks the reservation price moves per lot of position (γσ²τ in A-S)
 
     def __post_init__(self) -> None:
         if self.half_spread < 1:
             raise ValueError("skew half_spread must be >= 1")
         if self.quote_size < 1:
             raise ValueError("skew quote_size must be >= 1")
-        if self.gamma < 0:
-            raise ValueError("skew gamma must be >= 0")
-        if self.sigma < 0:
-            raise ValueError("skew sigma must be >= 0")
-        if self.horizon < 1:
-            raise ValueError("skew horizon must be >= 1")
-
-    @property
-    def skew_per_lot(self) -> float:
-        """Ticks the reservation price moves per lot of inventory: gamma * sigma^2 * tau."""
-        return self.gamma * self.sigma**2 * self.horizon
+        if self.skew_per_lot < 0:
+            raise ValueError("skew skew_per_lot must be >= 0")
 
 
 @dataclass(frozen=True)
 class KalmanConfig:
-    """The v2 agent's own assumptions about the market (not read from [market])."""
+    """The v2 agent's own estimates of the market, from `make calibrate` (never from [market])."""
 
     sigma: float  # true-value volatility, ticks per step
     noise_rate: float  # noise takers per step (lambda)
     mean_size: float  # average taker size, lots
     mean_size_sq: float  # average of size squared, lots^2
-    fill_prob_at_2_ticks: float  # sets k, as in the market model
+    k: float  # fill-rate decay: fills at distance d are proportional to exp(-k * d)
     gain_scale: float  # 1 = the Kalman gain; other values only for the sensitivity check
 
     def __post_init__(self) -> None:
@@ -158,15 +147,23 @@ class KalmanConfig:
             raise ValueError("kalman mean_size must be > 0")
         if self.mean_size_sq < self.mean_size**2:
             raise ValueError("kalman mean_size_sq must be >= mean_size^2")
-        if not 0 < self.fill_prob_at_2_ticks < 1:
-            raise ValueError("kalman fill_prob_at_2_ticks must be in (0, 1)")
+        if self.k <= 0:
+            raise ValueError("kalman k must be > 0")
         if self.gain_scale < 0:
             raise ValueError("kalman gain_scale must be >= 0")
 
-    @property
-    def k(self) -> float:
-        """k in P(fill at distance d) = exp(-k * d), from the calibration point."""
-        return -math.log(self.fill_prob_at_2_ticks) / FILL_PROB_REFERENCE_TICKS
+
+@dataclass(frozen=True)
+class CalibrationAgentConfig:
+    """The calibration agent's design choices (see mm.agent.calibration)."""
+
+    min_distance: int  # ticks from the centre, drawn uniformly per side per step
+    max_distance: int
+    rng_stream: int  # its own RNG is PCG64([episode seed, rng_stream]), never the market's
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.min_distance <= self.max_distance:
+            raise ValueError("calibration distances must satisfy 1 <= min <= max")
 
 
 @dataclass(frozen=True)
@@ -175,6 +172,18 @@ class AgentConfig:
     naive: NaiveConfig
     skew: SkewConfig
     kalman: KalmanConfig
+    calibration: CalibrationAgentConfig
+
+
+@dataclass(frozen=True)
+class CalibrationConfig:
+    """How the agent's parameters are estimated from its own observations (mm.calibration)."""
+
+    sigma_lag: int  # steps between the trade prices used for sigma
+
+    def __post_init__(self) -> None:
+        if self.sigma_lag < 1:
+            raise ValueError("calibration sigma_lag must be >= 1")
 
 
 @dataclass(frozen=True)
@@ -215,6 +224,7 @@ class SimConfig:
     n_steps: int
     seed: int
     evaluation: EvalConfig
+    calibration: CalibrationConfig
 
 
 def load_config(path: Path | None = None, scenario: str = "base") -> SimConfig:
@@ -240,6 +250,9 @@ def build_config(raw: dict[str, Any], scenario: str = "base") -> SimConfig:
         n_steps=simulation.get_int("n_steps"),
         seed=simulation.get_int("seed"),
         evaluation=_evaluation(root.get_table("evaluation")),
+        calibration=CalibrationConfig(
+            sigma_lag=root.get_table("calibration").get_int("sigma_lag")
+        ),
     )
     root.reject_unread()
     return config
@@ -319,6 +332,8 @@ def _agent(table: "_Table") -> AgentConfig:
     naive = table.get_table("naive")
     skew = table.get_table("skew")
     kalman = table.get_table("kalman")
+    calibration = table.get_table("calibration")
+    min_distance, max_distance = calibration.get_int_pair("distances")
     return AgentConfig(
         type=table.get_str("type"),
         naive=NaiveConfig(
@@ -328,17 +343,20 @@ def _agent(table: "_Table") -> AgentConfig:
         skew=SkewConfig(
             half_spread=skew.get_int("half_spread"),
             quote_size=skew.get_int("quote_size"),
-            gamma=skew.get_float("gamma"),
-            sigma=skew.get_float("sigma"),
-            horizon=skew.get_int("horizon"),
+            skew_per_lot=skew.get_float("skew_per_lot"),
         ),
         kalman=KalmanConfig(
             sigma=kalman.get_float("sigma"),
             noise_rate=kalman.get_float("noise_rate"),
             mean_size=kalman.get_float("mean_size"),
             mean_size_sq=kalman.get_float("mean_size_sq"),
-            fill_prob_at_2_ticks=kalman.get_float("fill_prob_at_2_ticks"),
+            k=kalman.get_float("k"),
             gain_scale=kalman.get_float("gain_scale"),
+        ),
+        calibration=CalibrationAgentConfig(
+            min_distance=min_distance,
+            max_distance=max_distance,
+            rng_stream=calibration.get_int("rng_stream"),
         ),
     )
 

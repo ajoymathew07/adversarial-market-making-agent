@@ -51,6 +51,7 @@ scripts/       repository checks run by CI (layout, pins, word count)
 
 - `make run`: build the Docker image and run the evaluation on held-out seeds; writes `results/`
 - `make determinism`: run a short evaluation twice in Docker and compare `episodes.csv` digests
+- `make calibrate`: estimate `[agent.kalman]` on base dev seeds and print it next to the true values
 - `make test`: run the test suite inside Docker
 - `make venv && make test-local`: same tests in a local virtualenv
 - `make verify`: all static checks plus coverage locally (checks, lint, typecheck, coverage)

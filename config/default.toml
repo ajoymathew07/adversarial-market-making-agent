@@ -35,17 +35,20 @@ quote_size = 5                  # lots
 [agent.skew]
 half_spread = 2                 # ticks
 quote_size = 5                  # lots
-gamma = 0.005                   # risk aversion, chosen on dev seeds (docs/results/v1-skew)
-sigma = 1.0                     # agent's assumed volatility, ticks per step
-horizon = 10                    # steps over which inventory risk is counted (tau)
+skew_per_lot = 0.05             # ticks of reservation shift per lot, tuned on dev seeds (docs/results/v1-skew)
 
-[agent.kalman]                  # the agent's own assumptions about the market, not read from [market]
-sigma = 1.0                     # true-value volatility, ticks per step
-noise_rate = 1.0                # noise takers per step
-mean_size = 3.0                 # average taker size, lots
-mean_size_sq = 11.0             # average of size squared (uniform 1-5), lots^2
-fill_prob_at_2_ticks = 0.30     # sets k, as in the market model
+[agent.kalman]
+# estimated on base dev seeds 0–29 by make calibrate; see docs/results/calibration.md
+sigma = 1.04                    # true-value volatility, ticks per step
+noise_rate = 1.01               # lambda: takers per step who would trade at the centre
+mean_size = 3.50                # average fill size, lots
+mean_size_sq = 16.44            # average of fill size squared, lots^2
+k = 0.38                        # fills at distance d from the centre fall as exp(-k * d)
 gain_scale = 1.0                # 1 = the Kalman gain; used only for the sensitivity check
+
+[agent.calibration]             # quotes at random distances so make calibrate can fit the fill rate
+distances = [1, 5]              # ticks from its centre (v1's skewed centre), uniform per side per step
+rng_stream = 1                  # own RNG: PCG64([episode seed, rng_stream]), never the market's
 
 [risk]
 position_limit = 50             # lots
@@ -58,6 +61,9 @@ heldout_seeds = [1000, 1029]    # inclusive range, used only for reported number
 markout_horizons = [0, 1, 5, 10, 20]
 bootstrap_resamples = 10000
 bootstrap_seed = 12345
+
+[calibration]
+sigma_lag = 50                  # steps between trade prices for sigma; dilutes the bid/ask bounce
 
 [scenarios]                     # each scenario lists only what it changes
 no_informed = { "market.informed.share" = 0.0 }
