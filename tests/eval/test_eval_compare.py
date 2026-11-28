@@ -14,7 +14,7 @@ from mm.eval.compare import (
     paired_estimate,
     pairs,
 )
-from mm.eval.report import comparison_table, file_digest
+from mm.eval.report import comparison_table, file_digest, side_by_side_table
 from mm.eval.runner import evaluate
 from mm.eval.stats import Estimate
 from mm.market import generate_intents
@@ -63,6 +63,19 @@ def test_constant_positive_difference_is_significant(base_run):
     assert row["Final PnL"] == "yes"
 
 
+def test_side_by_side_marks_only_the_agent_value_when_significant(base_run):
+    agent = with_pnl(base_run, [3.0, 4.0, 5.0])
+    baseline = with_pnl(base_run, [1.0, 2.0, 3.0])
+    reference = with_pnl(base_run, [9.0, 9.0, 9.0])
+    rows = side_by_side_table(("v1", baseline), ("v2", agent), [("ref", reference)])
+    assert rows[0] == ["Metric (mean [95% CI])", "v1", "v2", "ref"]
+    pnl = next(row for row in rows if row[0] == "Final PnL")
+    assert pnl[2].endswith(" ✔") and pnl[2].startswith("4.00")
+    assert not pnl[1].endswith("✔") and not pnl[3].endswith("✔")
+    sharpe = next(row for row in rows if row[0] == "Sharpe")
+    assert "✔" not in "".join(sharpe)  # identical runs apart from final PnL
+
+
 def test_nan_estimate_is_not_significant():
     assert not is_significant(Estimate(math.nan, math.nan, math.nan))
 
@@ -89,7 +102,8 @@ def test_two_agent_run_is_deterministic_and_writes_comparison(tmp_path, capsys):
     )
     assert "naive − naive: base" in out
     report = (tmp_path / "a" / "report.md").read_text(encoding="utf-8")
-    assert "## naive − naive: base" in report and "## Summary: naive" in report
+    assert "## naive vs naive: base" in report and "## Summary: naive" in report
+    assert " ✔ |" not in report  # an agent is never significantly different from itself
     lines = (tmp_path / "a" / "episodes.csv").read_text().splitlines()
     assert len(lines) == 1 + 2 * 30
 
