@@ -173,7 +173,12 @@ def test_unknown_competitor_name_is_rejected():
 
 @pytest.mark.parametrize(
     ("name", "competitor"),
-    [("vs_v1", "skew"), ("vs_tuned", "kalman_tuned"), ("vs_final", "final")],
+    [
+        ("vs_v1", "skew"),
+        ("vs_tuned", "kalman_tuned"),
+        ("vs_final", "final"),
+        ("vs_competitive", "competitive"),
+    ],
 )
 def test_competition_scenarios_change_only_the_competitor(name, competitor):
     base = load_config()

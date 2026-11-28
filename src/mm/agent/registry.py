@@ -38,6 +38,14 @@ _FACTORIES: dict[str, Callable[[SimConfig], Agent]] = {
         config.agent.final.adaptive(),
         config.agent.final.toxicity(),
     ),
+    # v6: v5 plus a base half-spread narrowed when its volume share falls, from [agent.competitive].
+    "competitive": lambda config: AdaptiveMarketMaker(
+        config.agent.competitive.final.skew(),
+        config.agent.kalman,
+        config.agent.competitive.final.adaptive(),
+        config.agent.competitive.final.toxicity(),
+        config.agent.competitive.competition,
+    ),
     # Uses v1's skew, quotes the largest size the gate allows, seeds its RNG from the episode.
     "calibration": lambda config: CalibrationMarketMaker(
         config.agent.calibration,

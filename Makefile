@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism calibrate sweep v2-experiments sweep-toxicity v3-experiments sweep-adaptive v4-experiments tune v5-experiments stress-tolerance stress-realistic competition realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
+.PHONY: build run determinism calibrate sweep v2-experiments sweep-toxicity v3-experiments sweep-adaptive v4-experiments tune v5-experiments sweep-competitive v6-experiments stress-tolerance stress-realistic competition realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -61,9 +61,19 @@ tune:
 	PYTHONPATH=src .venv/bin/python scripts/tune_final.py
 
 # v1 | v2 | v2-tuned | v4 | v5 on every scenario, held-out seeds, run once after make tune;
-# writes docs/results/v5-final/heldout.md and docs/results/summary.md.
+# writes docs/results/v5-final/heldout.md (summary.md is now written by v6-experiments).
 v5-experiments:
 	PYTHONPATH=src .venv/bin/python scripts/v5_experiments.py
+
+# v6 (competitive) d x min_half_spread x share_halflife x base grid on dev seeds, training
+# scenarios (with vs_v1) only, plus the detection check; writes docs/results/v6-competitive/dev-sweep.md.
+sweep-competitive:
+	PYTHONPATH=src .venv/bin/python scripts/sweep_competitive.py
+
+# v2-tuned | v5 | v6 on every scenario, held-out seeds, run once after the sweep;
+# writes docs/results/v6-competitive/heldout.md and docs/results/summary.md.
+v6-experiments:
+	PYTHONPATH=src .venv/bin/python scripts/v6_experiments.py
 
 # naive, skew and kalman under different noise-taker tolerance shapes, dev seeds only;
 # writes docs/results/stress-tolerance/dev.md.

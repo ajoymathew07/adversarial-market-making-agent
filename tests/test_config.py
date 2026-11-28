@@ -92,6 +92,7 @@ def test_scenario_names_follow_file_order():
         "vs_v1",
         "vs_tuned",
         "vs_final",
+        "vs_competitive",
     )
 
 
