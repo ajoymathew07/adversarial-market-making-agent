@@ -72,6 +72,17 @@ widen_per_tick = 0.0            # c, half-spread ticks per tick of toxicity
 ewma_halflife = 50.0            # lots of matured fills; a choice, not tuned (v5 searches it)
 max_half_spread = 8             # ticks; a choice, not tuned
 
+# [agent.adaptive] base_half_spread, uncertainty_weight and intensity_halflife from
+# make sweep-adaptive, 2026-11-28 (dev seeds, worst-case Sharpe over no_informed/base/toxic;
+# docs/results/v4-adaptive/dev-sweep.md). (4, 0, off) would quote exactly as kalman_tuned.
+[agent.adaptive]                # v4: control + online taker intensity + uncertainty-scaled spread
+base_half_spread = 3            # ticks when the filter is certain (P = 0)
+uncertainty_weight = 0.5        # a: half-spread ticks per tick of sqrt(P)
+intensity_halflife = 100.0      # steps of the fill-intensity EWMAs; 0 = off (rho = 1)
+min_scale = 0.25                # rho clipped to [min_scale, max_scale]; a choice, not tuned
+max_scale = 4.0                 # a choice, not tuned
+max_half_spread = 8             # ticks; a choice, not tuned (same as [agent.toxicity])
+
 [agent.calibration]             # quotes at random distances so make calibrate can fit the fill rate
 distances = [1, 5]              # ticks from its centre (v1's skewed centre), uniform per side per step
 rng_stream = 1                  # own RNG: PCG64([episode seed, rng_stream]), never the market's

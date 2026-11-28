@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import replace
 
+from mm.agent.adaptive import AdaptiveMarketMaker
 from mm.agent.calibration import CalibrationMarketMaker
 from mm.agent.interface import Agent
 from mm.agent.kalman import KalmanMarketMaker
@@ -24,6 +25,11 @@ _FACTORIES: dict[str, Callable[[SimConfig], Agent]] = {
     # v3 is v2 plus a half-spread that widens on its own fills' markouts.
     "toxicity": lambda config: ToxicityMarketMaker(
         config.agent.skew, config.agent.kalman, config.agent.toxicity
+    ),
+    # v4: the control plus an online noise intensity and an uncertainty-scaled spread. It keeps
+    # [agent.skew]'s skew_per_lot and quote_size; its half-spread comes from [agent.adaptive].
+    "adaptive": lambda config: AdaptiveMarketMaker(
+        config.agent.skew, config.agent.kalman, config.agent.adaptive
     ),
     # Uses v1's skew, quotes the largest size the gate allows, seeds its RNG from the episode.
     "calibration": lambda config: CalibrationMarketMaker(

@@ -1,4 +1,5 @@
-"""Record what an agent quoted, per step, for evaluation only: half-spread and v3's toxicity score.
+"""Record what an agent quoted, per step, for evaluation only: half-spread, v3's toxicity score
+and v4's intensity scale ρ.
 
 `evaluate(..., agent_factory=recorder.factory)` builds every episode's agent through the
 recorder, so the per-episode means line up with the result's seeds.
@@ -7,18 +8,26 @@ recorder, so the per-episode means line up with the result's seeds.
 import math
 from collections.abc import Sequence
 
-from mm.agent import Agent, Observation, Quote, ToxicityMarketMaker, make_agent
+from mm.agent import (
+    AdaptiveMarketMaker,
+    Agent,
+    Observation,
+    Quote,
+    ToxicityMarketMaker,
+    make_agent,
+)
 from mm.config import SimConfig
 from mm.eval.runner import ScenarioResult
 
 
 class RecordingAgent:
-    """Wraps an agent; keeps each quote's half-spread and, for v3, its toxicity score."""
+    """Wraps an agent; keeps each quote's half-spread, v3's toxicity score and v4's ρ."""
 
     def __init__(self, inner: Agent) -> None:
         self.inner = inner
         self.half_spreads: list[float] = []
         self.scores: list[float] = []
+        self.intensity: list[float] = []  # ρ after each quote; empty for other agents
 
     def quote(self, obs: Observation) -> Quote:
         quote = self.inner.quote(obs)
@@ -26,6 +35,8 @@ class RecordingAgent:
             self.half_spreads.append((quote.ask_price - quote.bid_price) / 2)
         if isinstance(self.inner, ToxicityMarketMaker):
             self.scores.append(self.inner.toxicity)
+        if isinstance(self.inner, AdaptiveMarketMaker):
+            self.intensity.append(self.inner.intensity_scale)
         return quote
 
 
@@ -45,6 +56,10 @@ class EpisodeRecorder:
     def mean_toxicity(self) -> list[float]:
         """Per-episode mean score; empty when the agent has none."""
         return [_mean(e.scores) for e in self.episodes if e.scores]
+
+    def mean_intensity(self) -> list[float]:
+        """Per-episode mean ρ; empty when the agent has none."""
+        return [_mean(e.intensity) for e in self.episodes if e.intensity]
 
 
 def informed_lot_share(result: ScenarioResult) -> list[float]:

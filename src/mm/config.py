@@ -223,6 +223,30 @@ class ToxicityConfig:
 
 
 @dataclass(frozen=True)
+class AdaptiveConfig:
+    """The v4 agent's intensity and uncertainty adaptation (see mm.agent.adaptive)."""
+
+    base_half_spread: int  # ticks; the half-spread when the filter is certain (P = 0)
+    uncertainty_weight: float  # a: half-spread ticks per tick of posterior std sqrt(P)
+    intensity_halflife: float  # steps; 0 turns the online intensity off (rho = 1)
+    min_scale: float  # rho is clipped to [min_scale, max_scale]
+    max_scale: float
+    max_half_spread: int  # ticks; the widened half-spread is clipped to this
+
+    def __post_init__(self) -> None:
+        if self.base_half_spread < 1:
+            raise ValueError("adaptive base_half_spread must be >= 1")
+        if self.max_half_spread < self.base_half_spread:
+            raise ValueError("adaptive max_half_spread must be >= base_half_spread")
+        if self.uncertainty_weight < 0:
+            raise ValueError("adaptive uncertainty_weight must be >= 0")
+        if self.intensity_halflife < 0:
+            raise ValueError("adaptive intensity_halflife must be >= 0 (0 = off)")
+        if not 0 < self.min_scale <= 1 <= self.max_scale:
+            raise ValueError("adaptive scales must satisfy 0 < min_scale <= 1 <= max_scale")
+
+
+@dataclass(frozen=True)
 class CalibrationAgentConfig:
     """The calibration agent's design choices (see mm.agent.calibration)."""
 
@@ -243,6 +267,7 @@ class AgentConfig:
     kalman: KalmanConfig
     kalman_tuned: KalmanTunedConfig
     toxicity: ToxicityConfig
+    adaptive: AdaptiveConfig
     calibration: CalibrationAgentConfig
 
 
@@ -419,6 +444,7 @@ def _agent(table: "_Table") -> AgentConfig:
     kalman = table.get_table("kalman")
     kalman_tuned = table.get_table("kalman_tuned")
     toxicity = table.get_table("toxicity")
+    adaptive = table.get_table("adaptive")
     calibration = table.get_table("calibration")
     min_distance, max_distance = calibration.get_int_pair("distances")
     return AgentConfig(
@@ -447,6 +473,14 @@ def _agent(table: "_Table") -> AgentConfig:
             widen_per_tick=toxicity.get_float("widen_per_tick"),
             ewma_halflife=toxicity.get_float("ewma_halflife"),
             max_half_spread=toxicity.get_int("max_half_spread"),
+        ),
+        adaptive=AdaptiveConfig(
+            base_half_spread=adaptive.get_int("base_half_spread"),
+            uncertainty_weight=adaptive.get_float("uncertainty_weight"),
+            intensity_halflife=adaptive.get_float("intensity_halflife"),
+            min_scale=adaptive.get_float("min_scale"),
+            max_scale=adaptive.get_float("max_scale"),
+            max_half_spread=adaptive.get_int("max_half_spread"),
         ),
         calibration=CalibrationAgentConfig(
             min_distance=min_distance,
