@@ -73,19 +73,27 @@ scripts/       repository checks run by CI (layout, pins, word count)
 
 ### PR description template
 
-Plain, concise sentences. No hype, no filler words, no emoji.
+Write for a reader with no context: they should understand what the PR does and why from the
+description alone. Plain sentences, no hype, no filler, no emoji. Use tables, short code
+snippets (API usage with example outputs), quotes and worked examples where they make things
+clearer. Group content under headings so it stays easy to skim.
 
 ```
 ## Summary
-One or two sentences on what this PR adds.
+What this PR adds and why it is needed, in a short paragraph. Introduce any concept a reader
+needs (a table helps when comparing types or roles).
 
 ## Changes made
-- `path/or/module`: what was added and the function or logic it uses.
+### How it's used
+A short code snippet of the public API with example outputs.
+
+### <Component or file>
+What it does and the key logic or rules (a table for rules, a worked example for formulas).
 
 ## Testing
-| Test | Status |
-|------|--------|
-| `tests/test_x.py::test_name` | Pass |
+| Area | What's checked | Status |
+|------|----------------|--------|
+| Matching | Never fills beyond its limit; FIFO at the same price; ... | Pass |
 
 ## Notes
 Anything the reviewer should know (follow-ups, known limitations). Omit if empty.
