@@ -8,6 +8,10 @@ initial_price = 100.00          # converted to ticks on load
 n_steps = 2000
 seed = 0
 
+[market]
+competitor = "none"             # a second maker from the [agent.*] registry, or "none" (decision 12)
+posting_order_stream = 2        # own RNG: PCG64([episode seed, 2]) picks who posts first, p = 1/2
+
 [market.true_value]
 sigma = 1.0                     # std of each step's move, in ticks
 step_shape = "normal"           # normal, or student_t: fat tails, scaled to the same std
@@ -130,3 +134,6 @@ bursty_takers    = { "market.noise.arrivals" = "regime" }
 heavy_tail_sizes = { "market.noise.size_shape" = "lognormal" }
 fat_tail_value   = { "market.true_value.step_shape" = "student_t" }
 realistic_mix    = { "market.noise.arrivals" = "regime", "market.noise.size_shape" = "lognormal", "market.true_value.step_shape" = "student_t" }
+# Competing makers (decision 12): a second maker with its own account, gate and monitor; base otherwise.
+vs_v1    = { "market.competitor" = "skew" }           # v1, half-spread 2
+vs_tuned = { "market.competitor" = "kalman_tuned" }   # v2 with half-spread 4

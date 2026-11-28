@@ -61,6 +61,7 @@ def test_informed_scenarios_differ_only_in_informed_share():
         for n in scenario_names()
         if load_config(scenario=n).market.noise == BASE.noise
         and load_config(scenario=n).market.true_value == BASE.true_value
+        and load_config(scenario=n).market.competitor == BASE.competitor
     ]
     shares = {name: load_config(scenario=name).market.informed.share for name in names}
     assert shares == {"no_informed": 0.0, "base": 0.15, "toxic": 0.40}

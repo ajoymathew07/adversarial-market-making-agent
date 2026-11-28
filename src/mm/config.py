@@ -25,6 +25,8 @@ TOLERANCE_SHAPES = ("exponential", "uniform", "lognormal")
 VALUE_STEP_SHAPES = ("normal", "student_t")
 NOISE_ARRIVALS = ("poisson", "regime")
 NOISE_SIZE_SHAPES = ("uniform", "lognormal")
+# market.competitor value for the single-maker market (decision 02, option A).
+NO_COMPETITOR = "none"
 
 
 class ConfigError(ValueError):
@@ -134,6 +136,10 @@ class MarketConfig:
     true_value: TrueValueConfig
     noise: NoiseConfig
     informed: InformedConfig
+    # A second market maker built by the agent registry, or NO_COMPETITOR (decision 12).
+    # The name is checked against the registry when the episode builds it.
+    competitor: str
+    posting_order_stream: int  # own RNG: PCG64([episode seed, stream]) picks who posts first
 
     @property
     def informed_rate(self) -> float:
@@ -398,9 +404,7 @@ def build_config(raw: dict[str, Any], scenario: str = "base") -> SimConfig:
         n_steps=simulation.get_int("n_steps"),
         seed=simulation.get_int("seed"),
         evaluation=_evaluation(root.get_table("evaluation")),
-        calibration=CalibrationConfig(
-            sigma_lag=root.get_table("calibration").get_int("sigma_lag")
-        ),
+        calibration=CalibrationConfig(sigma_lag=root.get_table("calibration").get_int("sigma_lag")),
     )
     root.reject_unread()
     return config
@@ -487,6 +491,8 @@ def _market(table: "_Table") -> MarketConfig:
             size_min=informed_min,
             size_max=informed_max,
         ),
+        competitor=table.get_str("competitor"),
+        posting_order_stream=table.get_int("posting_order_stream"),
     )
 
 

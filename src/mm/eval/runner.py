@@ -1,7 +1,7 @@
 """Run one agent over scenarios x seeds and collect per-episode metrics."""
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from mm.agent import Agent
@@ -18,6 +18,8 @@ class ScenarioResult:
     metrics: list[EpisodeMetrics]  # one per seed, in seed order
     example: EpisodeResult  # the first seed's full episode, for plots
     config: SimConfig  # the scenario's config; seed is that of the example
+    # The competing maker's metrics per seed when the scenario has one (decision 12), else empty.
+    competitor_metrics: list[EpisodeMetrics] = field(default_factory=list)
 
 
 def evaluate(
@@ -49,17 +51,31 @@ def evaluate(
             run_episode(config, agent_factory(config) if agent_factory else None)
             for config in configs
         ]
-        metrics = [
-            episode_metrics(
-                episode,
-                tick_size=config.instrument.tick_size,
-                fee_per_lot=config.engine.fee_per_lot,
-                position_limit=config.risk.position_limit,
-                horizons=config.evaluation.markout_horizons,
-            )
-            for episode, config in zip(episodes, configs, strict=True)
+        metrics = [_metrics(e, c) for e, c in zip(episodes, configs, strict=True)]
+        competitor_metrics = [
+            _metrics(e.competitor, c)
+            for e, c in zip(episodes, configs, strict=True)
+            if e.competitor is not None
         ]
         results.append(
-            ScenarioResult(agent_name, name, tuple(seeds), metrics, episodes[0], configs[0])
+            ScenarioResult(
+                agent_name,
+                name,
+                tuple(seeds),
+                metrics,
+                episodes[0],
+                configs[0],
+                competitor_metrics,
+            )
         )
     return results
+
+
+def _metrics(episode: EpisodeResult, config: SimConfig) -> EpisodeMetrics:
+    return episode_metrics(
+        episode,
+        tick_size=config.instrument.tick_size,
+        fee_per_lot=config.engine.fee_per_lot,
+        position_limit=config.risk.position_limit,
+        horizons=config.evaluation.markout_horizons,
+    )

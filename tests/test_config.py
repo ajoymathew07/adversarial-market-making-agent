@@ -89,6 +89,8 @@ def test_scenario_names_follow_file_order():
         "heavy_tail_sizes",
         "fat_tail_value",
         "realistic_mix",
+        "vs_v1",
+        "vs_tuned",
     )
 
 
