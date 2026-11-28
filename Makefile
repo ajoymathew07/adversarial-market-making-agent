@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism calibrate sweep v2-experiments stress-tolerance stress-realistic realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
+.PHONY: build run determinism calibrate sweep v2-experiments sweep-toxicity v3-experiments stress-tolerance stress-realistic realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -34,6 +34,15 @@ sweep:
 # v2 (kalman) vs v1, gain sensitivity and robustness on dev seeds only; writes docs/results/v2-kalman/dev.md.
 v2-experiments:
 	PYTHONPATH=src .venv/bin/python scripts/v2_experiments.py
+
+# v3 (toxicity) tau x c grid on dev seeds, training scenarios only; writes docs/results/v3-toxicity/dev-sweep.md.
+sweep-toxicity:
+	PYTHONPATH=src .venv/bin/python scripts/sweep_toxicity.py
+
+# v1 | v2 | v3 on every scenario, held-out seeds, run once after the sweep;
+# writes docs/results/v3-toxicity/heldout.md.
+v3-experiments:
+	PYTHONPATH=src .venv/bin/python scripts/v3_experiments.py
 
 # naive, skew and kalman under different noise-taker tolerance shapes, dev seeds only;
 # writes docs/results/stress-tolerance/dev.md.
