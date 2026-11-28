@@ -113,9 +113,36 @@ class NaiveConfig:
 
 
 @dataclass(frozen=True)
+class SkewConfig:
+    half_spread: int  # ticks from the reservation price to each quote
+    quote_size: int  # lots on each side
+    gamma: float  # risk aversion
+    sigma: float  # the agent's own assumed volatility, ticks per step (not the market's)
+    horizon: int  # steps over which inventory risk is counted (tau)
+
+    def __post_init__(self) -> None:
+        if self.half_spread < 1:
+            raise ValueError("skew half_spread must be >= 1")
+        if self.quote_size < 1:
+            raise ValueError("skew quote_size must be >= 1")
+        if self.gamma < 0:
+            raise ValueError("skew gamma must be >= 0")
+        if self.sigma < 0:
+            raise ValueError("skew sigma must be >= 0")
+        if self.horizon < 1:
+            raise ValueError("skew horizon must be >= 1")
+
+    @property
+    def skew_per_lot(self) -> float:
+        """Ticks the reservation price moves per lot of inventory: gamma * sigma^2 * tau."""
+        return self.gamma * self.sigma**2 * self.horizon
+
+
+@dataclass(frozen=True)
 class AgentConfig:
     type: str  # registry name of the agent that runs by default (see mm.agent.registry)
     naive: NaiveConfig
+    skew: SkewConfig
 
 
 @dataclass(frozen=True)
@@ -258,11 +285,19 @@ def _market(table: "_Table") -> MarketConfig:
 
 def _agent(table: "_Table") -> AgentConfig:
     naive = table.get_table("naive")
+    skew = table.get_table("skew")
     return AgentConfig(
         type=table.get_str("type"),
         naive=NaiveConfig(
             half_spread=naive.get_int("half_spread"),
             quote_size=naive.get_int("quote_size"),
+        ),
+        skew=SkewConfig(
+            half_spread=skew.get_int("half_spread"),
+            quote_size=skew.get_int("quote_size"),
+            gamma=skew.get_float("gamma"),
+            sigma=skew.get_float("sigma"),
+            horizon=skew.get_int("horizon"),
         ),
     )
 

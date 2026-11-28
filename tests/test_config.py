@@ -182,7 +182,7 @@ def test_evaluation_validation_fires(key, value, message):
 
 def test_agent_section_reads_type_and_naive_settings():
     agent = load_config().agent
-    assert agent.type == "naive"
+    assert agent.type == "skew"
     assert (agent.naive.half_spread, agent.naive.quote_size) == (2, 5)
 
 
@@ -204,4 +204,35 @@ def test_agent_type_must_be_a_string():
     raw = default_raw()
     raw["agent"]["type"] = 1
     with pytest.raises(ValueError, match="'agent.type' must be a string"):
+        build_config(raw)
+
+
+def test_skew_section_loads_with_derived_skew_per_lot():
+    skew = load_config().agent.skew
+    assert (skew.half_spread, skew.quote_size, skew.horizon) == (2, 5, 10)
+    assert (skew.gamma, skew.sigma) == (0.005, 1.0)
+    assert skew.skew_per_lot == pytest.approx(0.05)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "message"),
+    [
+        ("half_spread", 0, "half_spread must be >= 1"),
+        ("quote_size", 0, "quote_size must be >= 1"),
+        ("gamma", -0.01, "gamma must be >= 0"),
+        ("sigma", -1.0, "sigma must be >= 0"),
+        ("horizon", 0, "horizon must be >= 1"),
+    ],
+)
+def test_skew_validation_fires(key, value, message):
+    raw = default_raw()
+    raw["agent"]["skew"][key] = value
+    with pytest.raises(ValueError, match=message):
+        build_config(raw)
+
+
+def test_missing_skew_key_is_rejected_by_name():
+    raw = default_raw()
+    del raw["agent"]["skew"]["gamma"]
+    with pytest.raises(ValueError, match="missing config key 'agent.skew.gamma'"):
         build_config(raw)

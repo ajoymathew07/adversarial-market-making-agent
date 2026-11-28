@@ -20,3 +20,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** setup-python has no 3.13.9 build for the current `ubuntu-latest` image (Ubuntu 26.04), so the job failed before running any check. Local testing couldn't catch it because it only happens on GitHub's runner.
 - **How it was caught:** the first GitHub Actions run on PR #2 failed with "version '3.13.9' ... was not found for Ubuntu 26.04".
 - **Fix:** the job now runs inside the `python:3.13.9-slim` container, the same base image as the Dockerfile, so the exact version is guaranteed and matches the submission.
+
+### 2026-11-28: Pushed a branch with failing tests after changing a config value
+- **What the AI produced:** after setting the chosen γ = 0.005 in `config/default.toml`, the assistant ran the tests and the push in one shell command where the push didn't depend on the tests passing.
+- **What was wrong:** two tests still asserted the old placeholder γ = 0.01 (one read the default config instead of fixing its own value), so they failed, and the branch was pushed anyway.
+- **How it was caught:** the test output printed above the push result; no PR had been opened yet.
+- **Fix:** the agent test now sets its own skew explicitly instead of relying on the config default; the config test asserts the chosen value. Pushes are now chained only after a passing test run.

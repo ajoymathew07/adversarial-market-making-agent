@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism test venv test-local lint typecheck coverage checks verify clean
+.PHONY: build run determinism sweep test venv test-local lint typecheck coverage checks verify clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -22,6 +22,10 @@ determinism: build
 		echo "determinism check failed"; exit 1; \
 	fi; \
 	echo "determinism check passed"
+
+# Gamma sweep for the skew agent on dev seeds only; writes docs/results/v1-skew/.
+sweep:
+	PYTHONPATH=src .venv/bin/python scripts/sweep_skew.py
 
 test: build
 	docker run --rm $(IMAGE) python -m pytest -q

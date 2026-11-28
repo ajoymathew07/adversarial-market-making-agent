@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from mm.config import SimConfig, load_config
+from mm.config import AgentConfig, SimConfig, load_config
 from mm.eval.metrics import EpisodeMetrics, episode_metrics
 from mm.simulation import EpisodeResult, run_episode
 
@@ -25,13 +25,19 @@ def evaluate(
     n_steps: int,
     config_path: Path | None = None,
     agent: str | None = None,
+    agent_config: AgentConfig | None = None,
 ) -> list[ScenarioResult]:
-    """Run one agent (default: the config's [agent] type) on every scenario and seed."""
+    """Run one agent (default: the config's [agent] type) on every scenario and seed.
+
+    `agent_config` replaces the file's [agent] section, e.g. to sweep a parameter.
+    """
     if not seeds:
         raise ValueError("at least one seed is required")
     results = []
     for name in scenarios:
         base = replace(load_config(config_path, scenario=name), n_steps=n_steps)
+        if agent_config is not None:
+            base = replace(base, agent=agent_config)
         agent_name = agent or base.agent.type
         base = replace(base, agent=replace(base.agent, type=agent_name))
         configs = [replace(base, seed=seed) for seed in seeds]
