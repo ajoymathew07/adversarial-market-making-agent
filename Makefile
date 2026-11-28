@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism test venv test-local lint typecheck coverage checks verify clean
+.PHONY: build run determinism test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -47,6 +47,10 @@ checks:
 
 # Local one-shot of everything the static CI job runs.
 verify: checks lint typecheck coverage
+
+# Median run_episode time on the base scenario for growing n_steps (local venv).
+bench:
+	PYTHONPATH=src .venv/bin/python scripts/bench.py
 
 clean:
 	rm -rf .venv .pytest_cache .hypothesis

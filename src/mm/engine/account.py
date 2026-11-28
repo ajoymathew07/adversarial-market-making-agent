@@ -14,6 +14,10 @@ class Account:
     cash: int = 0
     # Each applied fill with the owner whose perspective it was applied from.
     fills: list[tuple[Fill, str]] = field(default_factory=list)
+    # Shadow ledger for reconciles(): rebuilt from fills only, never from position or cash.
+    _checked_fills: int = field(default=0, init=False, repr=False, compare=False)
+    _checked_position: int = field(default=0, init=False, repr=False, compare=False)
+    _checked_cash: int = field(default=0, init=False, repr=False, compare=False)
 
     def apply_fill(self, fill: Fill, as_owner: str) -> None:
         signed_size = _signed_size(fill, as_owner)
@@ -25,14 +29,17 @@ class Account:
         return self.cash + self.position * value_ticks
 
     def reconciles(self) -> bool:
-        """Recompute position and cash from the recorded fills and compare."""
-        position = 0
-        cash = 0
-        for fill, as_owner in self.fills:
+        """Recompute position and cash from the recorded fills and compare.
+
+        The shadow ledger only adds fills recorded since the last call, so checking every
+        step costs O(new fills) instead of O(all fills).
+        """
+        for fill, as_owner in self.fills[self._checked_fills :]:
             signed_size = _signed_size(fill, as_owner)
-            position += signed_size
-            cash += self._cash_change(fill, signed_size)
-        return position == self.position and cash == self.cash
+            self._checked_position += signed_size
+            self._checked_cash += self._cash_change(fill, signed_size)
+        self._checked_fills = len(self.fills)
+        return self._checked_position == self.position and self._checked_cash == self.cash
 
     def _cash_change(self, fill: Fill, signed_size: int) -> int:
         return -signed_size * fill.price - self.fee_per_lot * fill.size
