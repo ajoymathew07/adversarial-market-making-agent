@@ -67,3 +67,24 @@ def test_price_to_ticks_rounds_to_nearest_tick():
     assert price_to_ticks(100.00999, 0.01) == 10001
     assert price_to_ticks(100.004, 0.01) == 10000
     assert price_to_ticks(100 + 1 / 32, 1 / 32) == 3201
+
+
+def test_reconciles_detects_tampering_after_many_checked_fills():
+    account = Account(fee_per_lot=1)
+    for i in range(200):
+        account.apply_fill(make_fill(Side.BUY if i % 2 else Side.SELL), as_owner="mm")
+        assert account.reconciles()
+    account.position += 1
+    assert not account.reconciles()
+    account.position -= 1
+    account.cash -= 1
+    assert not account.reconciles()
+
+
+def test_reconciles_twice_without_new_fills_does_not_double_count():
+    account = Account()
+    account.apply_fill(make_fill(Side.BUY), as_owner="mm")
+    assert account.reconciles()
+    assert account.reconciles()
+    account.apply_fill(make_fill(Side.SELL), as_owner="mm")
+    assert account.reconciles()

@@ -15,12 +15,15 @@ class InvariantMonitor:
         self._position_limit = position_limit
         self._order_sizes: dict[int, int] = {}
         self._filled: defaultdict[int, int] = defaultdict(int)
+        # Orders filled since the last check; an order's total only changes when it fills.
+        self._unchecked: set[int] = set()
 
     def record_order(self, order_id: int, size: int) -> None:
         self._order_sizes[order_id] = size
 
     def record_fill(self, fill: Fill) -> None:
         self._filled[fill.maker_order_id] += fill.size
+        self._unchecked.add(fill.maker_order_id)
 
     def check(self, book: OrderBook, account: Account) -> None:
         """Raise InvariantViolation on the first failing invariant."""
@@ -39,9 +42,11 @@ class InvariantMonitor:
                 raise InvariantViolation(
                     f"open order {order.id} has filled {order.filled} of size {order.size}"
                 )
-        for order_id, filled in self._filled.items():
+        for order_id in sorted(self._unchecked):
+            filled = self._filled[order_id]
             size = self._order_sizes.get(order_id)
             if size is None or filled > size:
                 raise InvariantViolation(
                     f"order {order_id} filled {filled} lots, more than its size {size}"
                 )
+        self._unchecked.clear()
