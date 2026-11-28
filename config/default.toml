@@ -26,11 +26,18 @@ size = [5, 10]
 fee_per_lot = 0                 # ticks per lot
 
 [agent]
-type = "naive"                  # which agent runs by default
+type = "skew"                   # which agent runs by default (v1)
 
 [agent.naive]
 half_spread = 2                 # ticks
 quote_size = 5                  # lots
+
+[agent.skew]
+half_spread = 2                 # ticks
+quote_size = 5                  # lots
+gamma = 0.005                   # risk aversion, chosen on dev seeds (docs/results/v1-skew)
+sigma = 1.0                     # agent's assumed volatility, ticks per step
+horizon = 10                    # steps over which inventory risk is counted (tau)
 
 [risk]
 position_limit = 50             # lots

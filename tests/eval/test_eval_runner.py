@@ -1,6 +1,8 @@
+from dataclasses import replace
+
 import pytest
 
-from mm.config import DEFAULT_CONFIG_PATH
+from mm.config import DEFAULT_CONFIG_PATH, load_config
 from mm.eval.cli import main
 from mm.eval.plots import write_plots
 from mm.eval.report import file_digest, write_episodes_csv, write_report
@@ -70,3 +72,12 @@ def test_cli_rejects_unknown_scenario(tmp_path, capsys):
     with pytest.raises(SystemExit):
         main(["--scenarios", "toxik", "--out", str(tmp_path)])
     assert "unknown scenario toxik" in capsys.readouterr().err
+
+
+def test_agent_config_replaces_the_file_agent_section():
+    agent = load_config().agent
+    flat = replace(agent, type="skew", skew=replace(agent.skew, gamma=0.0))
+    skew = evaluate(["base"], [0], STEPS, agent_config=flat)[0]
+    naive = evaluate(["base"], [0], STEPS, agent="naive")[0]
+    assert skew.agent == "skew"
+    assert skew.metrics[0].as_row() == naive.metrics[0].as_row()

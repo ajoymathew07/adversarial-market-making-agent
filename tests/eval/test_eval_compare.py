@@ -96,8 +96,8 @@ def test_two_agent_run_is_deterministic_and_writes_comparison(tmp_path, capsys):
 
 def test_cli_rejects_unknown_agent(tmp_path, capsys):
     with pytest.raises(SystemExit):
-        main(["--agents", "naive,skew", "--out", str(tmp_path)])
-    assert "unknown agent skew" in capsys.readouterr().err
+        main(["--agents", "naive,bogus", "--out", str(tmp_path)])
+    assert "unknown agent bogus" in capsys.readouterr().err
 
 
 def test_market_draws_are_identical_across_agents(monkeypatch):
