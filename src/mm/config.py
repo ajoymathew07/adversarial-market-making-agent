@@ -21,6 +21,10 @@ FILL_PROB_REFERENCE_TICKS = 2.0
 
 # Shapes of the noise-taker price tolerance; all have mean 1/k (see mm.market.takers).
 TOLERANCE_SHAPES = ("exponential", "uniform", "lognormal")
+# Stress options; the first of each is the base model (see docs/decisions/08-realistic-scenarios.md).
+VALUE_STEP_SHAPES = ("normal", "student_t")
+NOISE_ARRIVALS = ("poisson", "regime")
+NOISE_SIZE_SHAPES = ("uniform", "lognormal")
 
 
 class ConfigError(ValueError):
@@ -48,13 +52,23 @@ class EngineConfig:
     fee_per_lot: int  # ticks per filled lot
 
 
+def _check_choice(name: str, value: str, valid: tuple[str, ...]) -> None:
+    if value not in valid:
+        raise ValueError(f"unknown {name} {value!r}; valid: {', '.join(valid)}")
+
+
 @dataclass(frozen=True)
 class TrueValueConfig:
     sigma: float  # std of each step's move, in ticks
+    step_shape: str  # one of VALUE_STEP_SHAPES
+    student_t_df: float  # degrees of freedom for student_t steps; > 2 for a finite variance
 
     def __post_init__(self) -> None:
         if self.sigma < 0:
             raise ValueError("sigma must be >= 0")
+        _check_choice("value step shape", self.step_shape, VALUE_STEP_SHAPES)
+        if self.student_t_df <= 2:
+            raise ValueError("student_t_df must be > 2")
 
 
 @dataclass(frozen=True)
@@ -64,18 +78,31 @@ class NoiseConfig:
     size_max: int
     fill_prob_at_2_ticks: float
     tolerance: str  # one of TOLERANCE_SHAPES
+    arrivals: str  # one of NOISE_ARRIVALS
+    calm_rate_scale: float  # regime arrivals: calm rate = calm_rate_scale * rate
+    calm_duration: float  # regime arrivals: mean calm spell, steps (geometric)
+    busy_rate_scale: float
+    busy_duration: float
+    size_shape: str  # one of NOISE_SIZE_SHAPES; uniform uses size_min..size_max
+    size_log_mu: float  # lognormal sizes: max(1, round(LogNormal(mu, sigma)))
+    size_log_sigma: float
 
     def __post_init__(self) -> None:
         if self.rate < 0:
             raise ValueError("noise rate must be >= 0")
-        if self.tolerance not in TOLERANCE_SHAPES:
-            raise ValueError(
-                f"unknown noise tolerance {self.tolerance!r}; valid: {', '.join(TOLERANCE_SHAPES)}"
-            )
+        _check_choice("noise tolerance", self.tolerance, TOLERANCE_SHAPES)
+        _check_choice("noise arrivals", self.arrivals, NOISE_ARRIVALS)
+        _check_choice("noise size shape", self.size_shape, NOISE_SIZE_SHAPES)
         if not 1 <= self.size_min <= self.size_max:
             raise ValueError("noise sizes must satisfy 1 <= min <= max")
         if not 0 < self.fill_prob_at_2_ticks < 1:
             raise ValueError("fill_prob_at_2_ticks must be in (0, 1)")
+        if min(self.calm_rate_scale, self.busy_rate_scale) < 0:
+            raise ValueError("regime rate scales must be >= 0")
+        if min(self.calm_duration, self.busy_duration) < 1:
+            raise ValueError("regime durations must be >= 1 step")
+        if self.size_log_sigma < 0:
+            raise ValueError("size_log_sigma must be >= 0")
 
     @property
     def tolerance_rate(self) -> float:
@@ -318,14 +345,27 @@ def _market(table: "_Table") -> MarketConfig:
     noise_min, noise_max = noise.get_int_pair("size")
     informed = table.get_table("informed")
     informed_min, informed_max = informed.get_int_pair("size")
+    true_value = table.get_table("true_value")
     return MarketConfig(
-        true_value=TrueValueConfig(sigma=table.get_table("true_value").get_float("sigma")),
+        true_value=TrueValueConfig(
+            sigma=true_value.get_float("sigma"),
+            step_shape=true_value.get_str("step_shape"),
+            student_t_df=true_value.get_float("student_t_df"),
+        ),
         noise=NoiseConfig(
             rate=noise.get_float("rate"),
             size_min=noise_min,
             size_max=noise_max,
             fill_prob_at_2_ticks=noise.get_float("fill_prob_at_2_ticks"),
             tolerance=noise.get_str("tolerance"),
+            arrivals=noise.get_str("arrivals"),
+            calm_rate_scale=noise.get_float("calm_rate_scale"),
+            calm_duration=noise.get_float("calm_duration"),
+            busy_rate_scale=noise.get_float("busy_rate_scale"),
+            busy_duration=noise.get_float("busy_duration"),
+            size_shape=noise.get_str("size_shape"),
+            size_log_mu=noise.get_float("size_log_mu"),
+            size_log_sigma=noise.get_float("size_log_sigma"),
         ),
         informed=InformedConfig(
             share=informed.get_float("share"),
