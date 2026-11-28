@@ -21,6 +21,8 @@ SUMMARY_METRICS: tuple[tuple[str, str], ...] = (
     ("markout_noise_10", "Noise markout/lot, t=10"),
     ("mean_abs_position", "Mean |q|"),
     ("pct_time_at_limit", "% time at limit"),
+    ("fair_value_rmse", "Fair-value RMSE (ticks)"),
+    ("fair_value_bias", "Fair-value bias (ticks)"),
 )
 MARKOUT_DECIMALS = 4
 PAIRED_NOTE = (
@@ -101,7 +103,8 @@ def write_report(runs: list[list[ScenarioResult]], n_steps: int, path: Path) -> 
     """Summary and markout sections per agent, then one comparison section per pair."""
     sections = [
         "# Evaluation report",
-        header(runs[0], n_steps) + ". Money in price units; markouts per lot.",
+        header(runs[0], n_steps)
+        + ". Money in price units; markouts per lot; fair-value error in ticks.",
     ]
     for results in runs:
         agent = results[0].agent

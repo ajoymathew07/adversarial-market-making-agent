@@ -20,11 +20,12 @@ FILLS = [
     FillRecord(2, 103.0, "noise", Side.SELL, price=105, size=3, maker_order_id=3),
 ]
 STATES = [(2, -198), (1, -96), (-2, 219)]  # (position, cash) after each step's fills
+FAIR_VALUES = (101.0, 101.0, 100.0)  # errors vs V: +1, 0, -3
 
 
 def hand_built() -> EpisodeResult:
     steps = [
-        StepRecord(t, PATH[t], q, c, bid_price=90, bid_size=5, ask_price=110, ask_size=5)
+        StepRecord(t, PATH[t], q, c, 90, 5, 110, 5, fair_value=FAIR_VALUES[t])
         for t, (q, c) in enumerate(STATES)
     ]
     gate = [
@@ -97,11 +98,18 @@ def test_hand_built_drawdown_and_sharpe_use_mark_to_market_path():
     assert m.sharpe == pytest.approx(changes.mean() / changes.std() * math.sqrt(3))
 
 
+def test_fair_value_rmse_and_bias_in_ticks_on_hand_built_episode():
+    m = episode_metrics(hand_built(), 0.01, fee_per_lot=0, position_limit=2, horizons=HORIZONS)
+    assert m.fair_value_rmse == pytest.approx(math.sqrt((1 + 0 + 9) / 3))
+    assert m.fair_value_bias == pytest.approx(-2 / 3)
+
+
 def test_as_row_has_every_scalar_column():
     row = episode_metrics(hand_built(), 1.0, 0, 2, HORIZONS).as_row()
     assert row["final_pnl"] == 15
     assert row["lots_informed"] == 1
     assert row["markout_noise_0"] == pytest.approx(1.6)
+    assert row["fair_value_bias"] == pytest.approx(-2 / 3)
     assert all(f"gate_{rule}" in row for rule in GATE_RULES)
 
 

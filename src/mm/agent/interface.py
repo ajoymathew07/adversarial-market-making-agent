@@ -32,16 +32,25 @@ class Observation:
     last_step_trades: tuple[Trade, ...]  # all public trades in the previous step
     # Price of the most recent trade; the public starting valuation until the first trade.
     last_trade_price: int
+    # The agent's own quotes as they rested in the book in the previous step, after the gate.
+    # None when that side had no order, and at step 0.
+    posted_bid: int | None
+    posted_ask: int | None
 
 
 @dataclass(frozen=True)
 class Quote:
-    """One price level per side. A None price means no order on that side."""
+    """One price level per side. A None price means no order on that side.
+
+    `fair_value` is the agent's own estimate of the true value in ticks (the price it centres
+    on). It is logged for evaluation only: the gate passes it through and the engine ignores it.
+    """
 
     bid_price: int | None
     bid_size: int
     ask_price: int | None
     ask_size: int
+    fair_value: float
 
 
 class Agent(Protocol):

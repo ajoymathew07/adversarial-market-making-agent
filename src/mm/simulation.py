@@ -43,6 +43,7 @@ class StepRecord:
     bid_size: int  # posted bid size after the gate; 0 when there is no bid
     ask_price: int | None
     ask_size: int
+    fair_value: float  # the agent's own estimate of the true value, in ticks
 
 
 @dataclass(frozen=True)
@@ -84,10 +85,11 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
     )
     last_trade_price = initial_value
     previous_fills: list[Fill] = []
+    posted: Quote | None = None  # the gated quote that rested last step; none at step 0
 
     for t in range(config.n_steps):
         value = float(path[t])
-        obs = _observe(t, account, previous_fills, last_trade_price)
+        obs = _observe(t, account, previous_fills, last_trade_price, posted)
         gated = apply_gate(agent.quote(obs), account.position, last_trade_price, config.risk)
         result.gate_events += [GateLogEntry(t, event) for event in gated.events]
         _replace_quotes(book, monitor, gated.quote)
@@ -105,6 +107,7 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
         if step_fills:
             last_trade_price = step_fills[-1].price
         previous_fills = step_fills
+        posted = gated.quote
         result.steps.append(
             StepRecord(
                 step=t,
@@ -115,6 +118,7 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
                 bid_size=gated.quote.bid_size,
                 ask_price=gated.quote.ask_price,
                 ask_size=gated.quote.ask_size,
+                fair_value=gated.quote.fair_value,
             )
         )
 
@@ -125,7 +129,11 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
 
 
 def _observe(
-    t: int, account: Account, previous_fills: list[Fill], last_trade_price: int
+    t: int,
+    account: Account,
+    previous_fills: list[Fill],
+    last_trade_price: int,
+    posted: Quote | None,
 ) -> Observation:
     """Build the agent's view from engine state only: no true value, no taker kind."""
     return Observation(
@@ -135,6 +143,8 @@ def _observe(
         own_fills=tuple(OwnFill(f.taker_side.opposite, f.price, f.size) for f in previous_fills),
         last_step_trades=tuple(Trade(f.price, f.size) for f in previous_fills),
         last_trade_price=last_trade_price,
+        posted_bid=posted.bid_price if posted is not None else None,
+        posted_ask=posted.ask_price if posted is not None else None,
     )
 
 
