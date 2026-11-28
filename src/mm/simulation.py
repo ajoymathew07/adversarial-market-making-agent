@@ -12,7 +12,12 @@ import numpy as np
 from mm.agent import Agent, Observation, OwnFill, Quote, Trade, make_agent
 from mm.config import SimConfig
 from mm.engine import Account, Fill, OrderBook
-from mm.market import TakerKind, generate_intents, generate_value_path
+from mm.market import (
+    TakerKind,
+    generate_intents,
+    generate_noise_rate_scale,
+    generate_value_path,
+)
 from mm.risk import GateEvent, InvariantMonitor, apply_gate
 from mm.types import Side
 
@@ -70,6 +75,8 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
     rng = np.random.Generator(np.random.PCG64(config.seed))
     initial_value = config.instrument.initial_price_ticks
     path = generate_value_path(config.market, initial_value, config.n_steps, rng)
+    # Drawn after the value path; draws nothing for Poisson arrivals, so base runs are unchanged.
+    noise_rate_scale = generate_noise_rate_scale(config.market.noise, config.n_steps, rng)
 
     book = OrderBook()
     account = Account(fee_per_lot=config.engine.fee_per_lot)
@@ -95,7 +102,8 @@ def run_episode(config: SimConfig, agent: Agent | None = None) -> EpisodeResult:
         _replace_quotes(book, monitor, gated.quote)
 
         step_fills: list[Fill] = []
-        for intent in generate_intents(path, t, config.market, rng):
+        scale = float(noise_rate_scale[t])
+        for intent in generate_intents(path, t, config.market, rng, scale):
             fills = book.match_ioc(TAKER, intent.side, intent.limit_price, intent.size, intent.kind)
             for fill in fills:
                 account.apply_fill(fill, as_owner=AGENT)

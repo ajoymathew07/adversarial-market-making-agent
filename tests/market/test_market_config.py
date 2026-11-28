@@ -41,6 +41,12 @@ def test_zero_informed_share_gives_zero_informed_rate():
         ("informed", {"edge_threshold": -1.0}),
         ("informed", {"size_min": 0}),
         ("informed", {"size_min": 11, "size_max": 10}),
+        ("true_value", {"student_t_df": 2.0}),
+        ("noise", {"calm_rate_scale": -0.1}),
+        ("noise", {"busy_rate_scale": -0.1}),
+        ("noise", {"calm_duration": 0.5}),
+        ("noise", {"busy_duration": 0.5}),
+        ("noise", {"size_log_sigma": -0.1}),
     ],
 )
 def test_config_rejects_out_of_range_values(part, bad):
@@ -50,7 +56,12 @@ def test_config_rejects_out_of_range_values(part, bad):
 
 def test_informed_scenarios_differ_only_in_informed_share():
     base = load_config()
-    names = [n for n in scenario_names() if load_config(scenario=n).market.noise == BASE.noise]
+    names = [
+        n
+        for n in scenario_names()
+        if load_config(scenario=n).market.noise == BASE.noise
+        and load_config(scenario=n).market.true_value == BASE.true_value
+    ]
     shares = {name: load_config(scenario=name).market.informed.share for name in names}
     assert shares == {"no_informed": 0.0, "base": 0.15, "toxic": 0.40}
     for name, share in shares.items():

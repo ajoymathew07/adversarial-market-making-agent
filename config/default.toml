@@ -10,12 +10,23 @@ seed = 0
 
 [market.true_value]
 sigma = 1.0                     # std of each step's move, in ticks
+step_shape = "normal"           # normal, or student_t: fat tails, scaled to the same std
+student_t_df = 5.0              # student_t only; excess kurtosis 6 / (df - 4) = 6
 
 [market.noise]
 rate = 1.0                      # mean arrivals per step (Poisson)
 size = [1, 5]                   # lots, uniform inclusive
 fill_prob_at_2_ticks = 0.30     # sets how price-sensitive they are
 tolerance = "exponential"       # shape of their price tolerance: exponential, uniform, lognormal
+arrivals = "poisson"            # poisson at rate, or regime: Markov calm/busy rate, same mean rate
+calm_rate_scale = 0.5           # regime only: calm rate = 0.5 x rate
+calm_duration = 80.0            # regime only: mean calm spell, steps (geometric)
+busy_rate_scale = 3.0           # regime only: busy rate = 3 x rate
+busy_duration = 20.0            # regime only: busy share 20/(80+20) = 0.2; 0.8x0.5 + 0.2x3 = 1
+size_shape = "uniform"          # uniform over size, or lognormal: max(1, round(LogNormal(mu, sigma)))
+size_log_mu = 0.5642            # lognormal only: solved by bisection on the exact mean of the
+                                # rounded size so it is 3.0 lots, the mean of uniform 1-5
+size_log_sigma = 1.0            # lognormal only; p99 / median of the rounded size is about 9
 
 [market.informed]
 share = 0.15                    # fraction of all takers
@@ -72,3 +83,8 @@ base        = {}
 toxic       = { "market.informed.share" = 0.40 }
 uniform_takers    = { "market.noise.tolerance" = "uniform" }     # same mean, hard cutoff at 2/k
 heavy_tail_takers = { "market.noise.tolerance" = "lognormal" }   # same mean, a few accept bad prices
+# Realism stress (decision 08): same mean noise rate, noise size and step std as base; shape only.
+bursty_takers    = { "market.noise.arrivals" = "regime" }
+heavy_tail_sizes = { "market.noise.size_shape" = "lognormal" }
+fat_tail_value   = { "market.true_value.step_shape" = "student_t" }
+realistic_mix    = { "market.noise.arrivals" = "regime", "market.noise.size_shape" = "lognormal", "market.true_value.step_shape" = "student_t" }

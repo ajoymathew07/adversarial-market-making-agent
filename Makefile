@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism calibrate sweep v2-experiments stress-tolerance realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
+.PHONY: build run determinism calibrate sweep v2-experiments stress-tolerance stress-realistic realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -39,6 +39,11 @@ v2-experiments:
 # writes docs/results/stress-tolerance/dev.md.
 stress-tolerance:
 	PYTHONPATH=src .venv/bin/python scripts/stress_tolerance.py
+
+# skew vs kalman on base and the realism stress scenarios, held-out seeds;
+# writes docs/results/stress-realistic/heldout.md.
+stress-realistic:
+	PYTHONPATH=src .venv/bin/python scripts/stress_realistic.py
 
 # One day of Binance BTCUSDT aggTrades for the realism check, verified against Binance's checksum.
 REALISM_URL := https://data.binance.vision/data/spot/daily/aggTrades/BTCUSDT/BTCUSDT-aggTrades-2026-11-25.zip

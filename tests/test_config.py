@@ -85,6 +85,10 @@ def test_scenario_names_follow_file_order():
         "toxic",
         "uniform_takers",
         "heavy_tail_takers",
+        "bursty_takers",
+        "heavy_tail_sizes",
+        "fat_tail_value",
+        "realistic_mix",
     )
 
 
@@ -124,6 +128,66 @@ def test_tolerance_shape_must_be_a_string():
     raw = default_raw()
     raw["market"]["noise"]["tolerance"] = 1.0
     with pytest.raises(ValueError, match="'market.noise.tolerance' must be a string"):
+        build_config(raw)
+
+
+def test_realism_scenarios_change_only_their_switches():
+    base = load_config()
+    regime = replace(base.market.noise, arrivals="regime")
+    lognormal = replace(base.market.noise, size_shape="lognormal")
+    student_t = replace(base.market.true_value, step_shape="student_t")
+    mix_noise = replace(base.market.noise, arrivals="regime", size_shape="lognormal")
+    expected = {
+        "bursty_takers": replace(base.market, noise=regime),
+        "heavy_tail_sizes": replace(base.market, noise=lognormal),
+        "fat_tail_value": replace(base.market, true_value=student_t),
+        "realistic_mix": replace(base.market, noise=mix_noise, true_value=student_t),
+    }
+    for name, market in expected.items():
+        assert load_config(scenario=name) == replace(base, market=market)
+
+
+def test_realism_options_are_off_in_base():
+    market = load_config().market
+    assert market.noise.arrivals == "poisson"
+    assert market.noise.size_shape == "uniform"
+    assert market.true_value.step_shape == "normal"
+
+
+@pytest.mark.parametrize(
+    ("table", "key", "valid"),
+    [
+        ("noise", "arrivals", "poisson, regime"),
+        ("noise", "size_shape", "uniform, lognormal"),
+        ("true_value", "step_shape", "normal, student_t"),
+    ],
+)
+def test_unknown_realism_switch_is_rejected_naming_the_valid_ones(table, key, valid):
+    raw = default_raw()
+    raw["market"][table][key] = "hawkes"
+    with pytest.raises(ValueError, match=f"'hawkes'; valid: {valid}"):
+        build_config(raw)
+
+
+@pytest.mark.parametrize(
+    ("table", "key"),
+    [
+        ("noise", "arrivals"),
+        ("noise", "calm_rate_scale"),
+        ("noise", "calm_duration"),
+        ("noise", "busy_rate_scale"),
+        ("noise", "busy_duration"),
+        ("noise", "size_shape"),
+        ("noise", "size_log_mu"),
+        ("noise", "size_log_sigma"),
+        ("true_value", "step_shape"),
+        ("true_value", "student_t_df"),
+    ],
+)
+def test_missing_realism_key_is_rejected_by_name(table, key):
+    raw = default_raw()
+    del raw["market"][table][key]
+    with pytest.raises(ValueError, match=f"missing config key 'market.{table}.{key}'"):
         build_config(raw)
 
 
