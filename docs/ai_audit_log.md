@@ -32,3 +32,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** a real market maker cannot know how takers behave. Copying the simulator's parameters (and its exact fill formula) made v2 right by construction and overstated its results. v1's σ and τ were copied too, although only their tuned product mattered.
 - **How it was caught:** the author asked how a market maker would know R and H in practice.
 - **Fix:** a standing rule in CLAUDE.md (no market knowledge in agents); every taker parameter is now estimated from the agent's own fills on training seeds (`make calibrate`), with an estimated-vs-true table as a simulation-only check; v1's skew is a single tuned parameter; the exponential fill shape is tested separately with non-exponential taker scenarios.
+
+### 2026-11-28: Kalman filter froze at the position limit
+- **What the AI produced:** the v2 filter capped each side's fill probability at 1 (`min(1, e^(−k·distance))`) and gave a capped side zero slope.
+- **What was wrong:** at the +50 limit the gate removes the bid and the skewed ask sits below fair value, so the only quote is capped: H = 0, the gain is 0, fair value freezes and the agent stays stuck at the limit (about 60% of the episode on a few seeds). The leaked "oracle" parameters happened to hide it; calibrated parameters exposed it.
+- **How it was caught:** calibration results showed a heavy fair-value-error tail on a handful of seeds; tracing one (held-out 1021) showed fv frozen at the limit.
+- **Fix:** treat e^(−k·distance) as an arrival intensity (the standard Avellaneda–Stoikov form), not a capped probability, so H > 0 whenever a side rests. A regression test forces the agent to the limit and asserts fair value keeps updating and the agent leaves the limit.
