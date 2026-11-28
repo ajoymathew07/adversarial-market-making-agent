@@ -3,6 +3,7 @@
 ## Who provides liquidity
 
 Decision: **(A) only our agent quotes** in v0. Every trade is a taker hitting the agent.
+Competing makers (one more registry agent in the same book) were added later: see decision 12.
 
 | Option | Pros | Cons |
 |--------|------|------|
