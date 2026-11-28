@@ -76,7 +76,7 @@ def test_cli_rejects_unknown_scenario(tmp_path, capsys):
 
 def test_agent_config_replaces_the_file_agent_section():
     agent = load_config().agent
-    flat = replace(agent, type="skew", skew=replace(agent.skew, gamma=0.0))
+    flat = replace(agent, type="skew", skew=replace(agent.skew, skew_per_lot=0.0))
     skew = evaluate(["base"], [0], STEPS, agent_config=flat)[0]
     naive = evaluate(["base"], [0], STEPS, agent="naive")[0]
     assert skew.agent == "skew"

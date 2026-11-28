@@ -2,6 +2,7 @@ import inspect
 import math
 import tomllib
 from dataclasses import replace
+from itertools import pairwise
 
 import pytest
 
@@ -14,7 +15,7 @@ from mm.agent.kalman import (
     steady_state,
     symmetric_steady_state,
 )
-from mm.config import DEFAULT_CONFIG_PATH, build_config, load_config
+from mm.config import DEFAULT_CONFIG_PATH, KalmanConfig, build_config, load_config
 from mm.simulation import run_episode
 from mm.types import Side
 
@@ -51,8 +52,10 @@ def warmed_filter(steps: int = 5) -> KalmanFairValue:
 
 
 def test_theory_steady_state_matches_the_hand_numbers():
-    state = symmetric_steady_state(KALMAN, half_spread=2)
-    flow = expected_flow(KALMAN, 0.0, -2, 2)
+    # Round textbook values (σ = λ = 1, sizes uniform 1..5, e^(−2k) = 0.3), not the config's.
+    textbook = KalmanConfig(1.0, 1.0, 3.0, 11.0, k=-math.log(0.30) / 2, gain_scale=1.0)
+    state = symmetric_steady_state(textbook, half_spread=2)
+    flow = expected_flow(textbook, 0.0, -2, 2)
     assert flow.slope == pytest.approx(0.54, abs=0.005)  # λ s̄ k e^(−2k)
     assert flow.variance == pytest.approx(3.3)  # λ E[s²] e^(−2k)
     assert state.gain == pytest.approx(0.47, abs=0.01)
@@ -104,7 +107,7 @@ def test_flow_equal_to_the_skewed_expectation_does_not_move_fair_value():
     # The same flow read against symmetric quotes would have moved fv up.
     naive = warmed_filter()
     naive.update(expected.mean, CENTRE - 2, CENTRE + 2)
-    assert naive.value > CENTRE + 0.5
+    assert naive.value > CENTRE + 0.25
 
 
 def test_missing_side_contributes_nothing():
@@ -118,10 +121,39 @@ def test_missing_side_contributes_nothing():
     assert only_bid.mean == pytest.approx(-only_ask.mean)
 
 
-def test_a_quote_through_fair_value_is_capped_and_has_no_slope():
-    flow = expected_flow(KALMAN, CENTRE, None, CENTRE - 1)  # ask below fv: every buyer takes it
-    assert flow.mean == pytest.approx(KALMAN.noise_rate / 2 * KALMAN.mean_size)
-    assert flow.slope == 0
+def test_a_one_sided_ask_below_fair_value_still_has_slope_and_moves_fair_value():
+    # At the long limit the gate drops the bid and the skew pushes the ask below fv. The rate is
+    # an uncapped intensity, so it exceeds λ/2 there and still responds to fv.
+    ask = CENTRE - 1
+    flow = expected_flow(KALMAN, CENTRE, None, ask)
+    rate = math.exp(KALMAN.k)
+    assert rate > 1
+    assert flow.mean == pytest.approx(KALMAN.noise_rate / 2 * KALMAN.mean_size * rate)
+    assert flow.slope == pytest.approx(KALMAN.k * flow.mean)
+    assert flow.slope > 0
+    fv = warmed_filter()
+    fv.update(0, None, ask)  # fewer taker buys than expected: fv falls
+    assert fv.value < CENTRE
+
+
+def test_agent_held_at_the_position_limit_keeps_updating_and_leaves_it():
+    # Regression for the filter lock: a 10-lot limit and strong skew (dev seed 7, toxic) push the
+    # agent to the limit with its only quote through fv. With a capped probability H was 0 there,
+    # fv froze for 476 of 500 steps and the agent sat at the limit for 482.
+    config = load_config(scenario="toxic")
+    agent = replace(config.agent, type="kalman", skew=replace(config.agent.skew, skew_per_lot=0.3))
+    config = replace(
+        config, n_steps=500, seed=7, agent=agent, risk=replace(config.risk, position_limit=10)
+    )
+    steps = run_episode(config).steps
+    at_limit = sum(abs(s.position) >= 10 for s in steps)
+    assert at_limit > 0  # the scenario does reach the limit
+    assert at_limit < 50
+    longest_frozen = frozen = 0  # consecutive steps where fv did not change
+    for before, after in pairwise(steps):
+        frozen = frozen + 1 if after.fair_value == before.fair_value else 0
+        longest_frozen = max(longest_frozen, frozen)
+    assert longest_frozen < 20
 
 
 def test_far_quotes_keep_the_variance_above_the_floor():
@@ -173,7 +205,7 @@ def test_agent_restarts_its_filter_at_step_zero():
 
 @pytest.mark.parametrize("half_spread", [1, 2, 5])
 def test_quotes_never_self_cross(half_spread):
-    agent = KalmanMarketMaker(replace(SKEW, half_spread=half_spread, gamma=0.05), KALMAN)
+    agent = KalmanMarketMaker(replace(SKEW, half_spread=half_spread, skew_per_lot=0.5), KALMAN)
     agent.quote(observation(step=0, posted=(None, None)))
     for position in range(-50, 51, 5):
         for n in (-10, 0, 10):
@@ -213,14 +245,14 @@ def test_full_episode_is_deterministic():
 
 def test_registry_has_kalman_and_default_type_stays_skew():
     assert "kalman" in AGENT_NAMES
-    assert isinstance(make_agent(replace(CONFIG.agent, type="kalman")), KalmanMarketMaker)
+    config = replace(CONFIG, agent=replace(CONFIG.agent, type="kalman"))
+    assert isinstance(make_agent(config), KalmanMarketMaker)
     assert CONFIG.agent.type == "skew"
 
 
-def test_kalman_config_loads_and_derives_k():
-    assert (KALMAN.sigma, KALMAN.noise_rate, KALMAN.gain_scale) == (1.0, 1.0, 1.0)
-    assert (KALMAN.mean_size, KALMAN.mean_size_sq) == (3.0, 11.0)
-    assert KALMAN.k == pytest.approx(-math.log(0.30) / 2)
+def test_kalman_config_loads_the_calibrated_values():
+    assert (KALMAN.sigma, KALMAN.noise_rate, KALMAN.k, KALMAN.gain_scale) == (1.04, 1.01, 0.38, 1.0)
+    assert (KALMAN.mean_size, KALMAN.mean_size_sq) == (3.5, 16.44)
 
 
 @pytest.mark.parametrize(
@@ -230,7 +262,7 @@ def test_kalman_config_loads_and_derives_k():
         ("noise_rate", 0.0, "noise_rate must be > 0"),
         ("mean_size", 0.0, "mean_size must be > 0"),
         ("mean_size_sq", 8.0, "mean_size_sq must be >= mean_size"),
-        ("fill_prob_at_2_ticks", 1.0, r"fill_prob_at_2_ticks must be in \(0, 1\)"),
+        ("k", 0.0, "k must be > 0"),
         ("gain_scale", -0.5, "gain_scale must be >= 0"),
     ],
 )

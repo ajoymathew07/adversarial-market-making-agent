@@ -1,3 +1,5 @@
+Superseded: used the market's true parameters (leak); see heldout-calibrated/
+
 # Evaluation report
 
 30 seeds (1000..1029), 2000 steps per episode. Money in price units; markouts per lot; fair-value error in ticks.

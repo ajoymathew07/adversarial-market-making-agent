@@ -7,7 +7,11 @@ from mm.config import SkewConfig
 
 
 class InventorySkewMarketMaker:
-    """Quotes r ± half_spread, with r = centre − q · γ · σ² · τ rounded to the nearest tick."""
+    """Quotes r ± half_spread, with r = centre − q · skew_per_lot rounded to the nearest tick.
+
+    skew_per_lot plays the role of Avellaneda-Stoikov's γσ²τ. It is one tuned number, so the
+    agent needs no assumption about the market's volatility.
+    """
 
     def __init__(self, config: SkewConfig) -> None:
         self._config = config

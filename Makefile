@@ -1,7 +1,7 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism sweep v2-experiments test venv test-local lint typecheck coverage checks verify bench clean
+.PHONY: build run determinism calibrate sweep v2-experiments test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
@@ -23,7 +23,11 @@ determinism: build
 	fi; \
 	echo "determinism check passed"
 
-# Gamma sweep for the skew agent on dev seeds only; writes docs/results/v1-skew/.
+# Estimate [agent.kalman] from the calibration agent's own observations on base dev seeds.
+calibrate:
+	PYTHONPATH=src .venv/bin/python scripts/calibrate.py
+
+# skew_per_lot sweep for the skew agent on dev seeds only; writes docs/results/v1-skew/.
 sweep:
 	PYTHONPATH=src .venv/bin/python scripts/sweep_skew.py
 

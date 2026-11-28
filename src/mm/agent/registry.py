@@ -2,24 +2,34 @@
 
 from collections.abc import Callable
 
+from mm.agent.calibration import CalibrationMarketMaker
 from mm.agent.interface import Agent
 from mm.agent.kalman import KalmanMarketMaker
 from mm.agent.naive import NaiveMarketMaker
 from mm.agent.skew import InventorySkewMarketMaker
-from mm.config import AgentConfig, ConfigError
+from mm.config import ConfigError, SimConfig
 
-_FACTORIES: dict[str, Callable[[AgentConfig], Agent]] = {
-    "naive": lambda config: NaiveMarketMaker(config.naive),
-    "skew": lambda config: InventorySkewMarketMaker(config.skew),
+_FACTORIES: dict[str, Callable[[SimConfig], Agent]] = {
+    "naive": lambda config: NaiveMarketMaker(config.agent.naive),
+    "skew": lambda config: InventorySkewMarketMaker(config.agent.skew),
     # v2 shares v1's [agent.skew] quoting settings; only its fair value differs.
-    "kalman": lambda config: KalmanMarketMaker(config.skew, config.kalman),
+    "kalman": lambda config: KalmanMarketMaker(config.agent.skew, config.agent.kalman),
+    # Uses v1's skew, quotes the largest size the gate allows, seeds its RNG from the episode.
+    "calibration": lambda config: CalibrationMarketMaker(
+        config.agent.calibration,
+        config.agent.skew.skew_per_lot,
+        config.risk.max_order_size,
+        config.seed,
+    ),
 }
 AGENT_NAMES: tuple[str, ...] = tuple(_FACTORIES)
 
 
-def make_agent(config: AgentConfig) -> Agent:
-    """Return a fresh agent of type `config.type`, built from its own config section."""
-    factory = _FACTORIES.get(config.type)
+def make_agent(config: SimConfig) -> Agent:
+    """Return a fresh agent of type `config.agent.type` for one episode of `config`."""
+    factory = _FACTORIES.get(config.agent.type)
     if factory is None:
-        raise ConfigError(f"unknown agent type {config.type!r}; known: {', '.join(AGENT_NAMES)}")
+        raise ConfigError(
+            f"unknown agent type {config.agent.type!r}; known: {', '.join(AGENT_NAMES)}"
+        )
     return factory(config)

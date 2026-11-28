@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import math
+from collections.abc import Sequence
 from pathlib import Path
 
 from mm.eval.compare import COMPARE_METRICS, is_significant, paired_estimate, pairs
@@ -28,6 +29,11 @@ MARKOUT_DECIMALS = 4
 PAIRED_NOTE = (
     "Per-seed differences (agent − baseline) on identical markets; "
     "significant when the 95% CI excludes 0."
+)
+SIGNIFICANT = "✔"
+SIDE_BY_SIDE_NOTE = (
+    f"Mean [95% CI] over seeds. {SIGNIFICANT} on the agent's value: the per-seed difference "
+    "from the baseline on identical markets has a 95% CI that excludes 0."
 )
 
 
@@ -99,8 +105,29 @@ def comparison_table(agent: ScenarioResult, baseline: ScenarioResult) -> list[li
     return rows
 
 
+def side_by_side_table(
+    baseline: tuple[str, ScenarioResult],
+    agent: tuple[str, ScenarioResult],
+    references: Sequence[tuple[str, ScenarioResult]] = (),
+) -> list[list[str]]:
+    """One row per summary metric; columns baseline | agent | references, each labelled.
+
+    The agent's value is marked when its paired difference from the baseline is significant.
+    Reference columns are shown as they are, unmarked.
+    """
+    columns = [baseline, agent, *references]
+    rows = [["Metric (mean [95% CI])", *(label for label, _ in columns)]]
+    for column, label in SUMMARY_METRICS:
+        decimals = decimals_for(column)
+        cells = [format_estimate(estimate(result, column), decimals) for _, result in columns]
+        if is_significant(paired_estimate(agent[1], baseline[1], column)):
+            cells[1] += f" {SIGNIFICANT}"
+        rows.append([label, *cells])
+    return rows
+
+
 def write_report(runs: list[list[ScenarioResult]], n_steps: int, path: Path) -> None:
-    """Summary and markout sections per agent, then one comparison section per pair."""
+    """Summary and markout sections per agent, then a side-by-side section per pair."""
     sections = [
         "# Evaluation report",
         header(runs[0], n_steps)
@@ -115,10 +142,13 @@ def write_report(runs: list[list[ScenarioResult]], n_steps: int, path: Path) -> 
             format_markdown(markout_table(results)),
         ]
     for agent_result, baseline in pairs(runs):
+        table = side_by_side_table(
+            (baseline.agent, baseline), (agent_result.agent, agent_result)
+        )
         sections += [
-            f"## {comparison_title(agent_result, baseline)}",
-            PAIRED_NOTE,
-            format_markdown(comparison_table(agent_result, baseline)),
+            f"## {baseline.agent} vs {agent_result.agent}: {agent_result.scenario}",
+            SIDE_BY_SIDE_NOTE,
+            format_markdown(table),
         ]
     path.write_text("\n\n".join(sections) + "\n", encoding="utf-8")
 
