@@ -139,10 +139,42 @@ class SkewConfig:
 
 
 @dataclass(frozen=True)
+class KalmanConfig:
+    """The v2 agent's own assumptions about the market (not read from [market])."""
+
+    sigma: float  # true-value volatility, ticks per step
+    noise_rate: float  # noise takers per step (lambda)
+    mean_size: float  # average taker size, lots
+    mean_size_sq: float  # average of size squared, lots^2
+    fill_prob_at_2_ticks: float  # sets k, as in the market model
+    gain_scale: float  # 1 = the Kalman gain; other values only for the sensitivity check
+
+    def __post_init__(self) -> None:
+        if self.sigma < 0:
+            raise ValueError("kalman sigma must be >= 0")
+        if self.noise_rate <= 0:
+            raise ValueError("kalman noise_rate must be > 0")
+        if self.mean_size <= 0:
+            raise ValueError("kalman mean_size must be > 0")
+        if self.mean_size_sq < self.mean_size**2:
+            raise ValueError("kalman mean_size_sq must be >= mean_size^2")
+        if not 0 < self.fill_prob_at_2_ticks < 1:
+            raise ValueError("kalman fill_prob_at_2_ticks must be in (0, 1)")
+        if self.gain_scale < 0:
+            raise ValueError("kalman gain_scale must be >= 0")
+
+    @property
+    def k(self) -> float:
+        """k in P(fill at distance d) = exp(-k * d), from the calibration point."""
+        return -math.log(self.fill_prob_at_2_ticks) / FILL_PROB_REFERENCE_TICKS
+
+
+@dataclass(frozen=True)
 class AgentConfig:
     type: str  # registry name of the agent that runs by default (see mm.agent.registry)
     naive: NaiveConfig
     skew: SkewConfig
+    kalman: KalmanConfig
 
 
 @dataclass(frozen=True)
@@ -286,6 +318,7 @@ def _market(table: "_Table") -> MarketConfig:
 def _agent(table: "_Table") -> AgentConfig:
     naive = table.get_table("naive")
     skew = table.get_table("skew")
+    kalman = table.get_table("kalman")
     return AgentConfig(
         type=table.get_str("type"),
         naive=NaiveConfig(
@@ -298,6 +331,14 @@ def _agent(table: "_Table") -> AgentConfig:
             gamma=skew.get_float("gamma"),
             sigma=skew.get_float("sigma"),
             horizon=skew.get_int("horizon"),
+        ),
+        kalman=KalmanConfig(
+            sigma=kalman.get_float("sigma"),
+            noise_rate=kalman.get_float("noise_rate"),
+            mean_size=kalman.get_float("mean_size"),
+            mean_size_sq=kalman.get_float("mean_size_sq"),
+            fill_prob_at_2_ticks=kalman.get_float("fill_prob_at_2_ticks"),
+            gain_scale=kalman.get_float("gain_scale"),
         ),
     )
 
