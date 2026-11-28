@@ -284,7 +284,7 @@ def test_evaluation_validation_fires(key, value, message):
 
 def test_agent_section_reads_type_and_naive_settings():
     agent = load_config().agent
-    assert agent.type == "skew"
+    assert agent.type == "final"
     assert (agent.naive.half_spread, agent.naive.quote_size) == (2, 5)
 
 

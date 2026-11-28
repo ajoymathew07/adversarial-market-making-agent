@@ -247,6 +247,57 @@ class AdaptiveConfig:
 
 
 @dataclass(frozen=True)
+class FinalConfig:
+    """Every knob of the v5 agent: v4's adaptive agent plus v3's toxicity widening.
+
+    Range checks are those of the sections it is split into (`skew`, `adaptive`, `toxicity`).
+    """
+
+    base_half_spread: int  # ticks
+    skew_per_lot: float  # ticks of reservation shift per lot of position
+    quote_size: int  # lots on each side
+    uncertainty_weight: float  # a: half-spread ticks per tick of sqrt(P)
+    intensity_halflife: float  # steps; 0 = off
+    min_scale: float  # rho clip
+    max_scale: float
+    max_half_spread: int  # ticks
+    widen_per_tick: float  # c: half-spread ticks per tick of toxicity score T
+    markout_horizon: int  # tau, observations
+    ewma_halflife: float  # lots of matured fills
+
+    def __post_init__(self) -> None:
+        self.skew()
+        self.adaptive()
+        self.toxicity()
+
+    def skew(self) -> SkewConfig:
+        return SkewConfig(
+            half_spread=self.base_half_spread,
+            quote_size=self.quote_size,
+            skew_per_lot=self.skew_per_lot,
+        )
+
+    def adaptive(self) -> AdaptiveConfig:
+        return AdaptiveConfig(
+            base_half_spread=self.base_half_spread,
+            uncertainty_weight=self.uncertainty_weight,
+            intensity_halflife=self.intensity_halflife,
+            min_scale=self.min_scale,
+            max_scale=self.max_scale,
+            max_half_spread=self.max_half_spread,
+        )
+
+    def toxicity(self) -> ToxicityConfig:
+        return ToxicityConfig(
+            base_half_spread=self.base_half_spread,
+            markout_horizon=self.markout_horizon,
+            widen_per_tick=self.widen_per_tick,
+            ewma_halflife=self.ewma_halflife,
+            max_half_spread=self.max_half_spread,
+        )
+
+
+@dataclass(frozen=True)
 class CalibrationAgentConfig:
     """The calibration agent's design choices (see mm.agent.calibration)."""
 
@@ -268,6 +319,7 @@ class AgentConfig:
     kalman_tuned: KalmanTunedConfig
     toxicity: ToxicityConfig
     adaptive: AdaptiveConfig
+    final: FinalConfig
     calibration: CalibrationAgentConfig
 
 
@@ -445,6 +497,7 @@ def _agent(table: "_Table") -> AgentConfig:
     kalman_tuned = table.get_table("kalman_tuned")
     toxicity = table.get_table("toxicity")
     adaptive = table.get_table("adaptive")
+    final = table.get_table("final")
     calibration = table.get_table("calibration")
     min_distance, max_distance = calibration.get_int_pair("distances")
     return AgentConfig(
@@ -481,6 +534,19 @@ def _agent(table: "_Table") -> AgentConfig:
             min_scale=adaptive.get_float("min_scale"),
             max_scale=adaptive.get_float("max_scale"),
             max_half_spread=adaptive.get_int("max_half_spread"),
+        ),
+        final=FinalConfig(
+            base_half_spread=final.get_int("base_half_spread"),
+            skew_per_lot=final.get_float("skew_per_lot"),
+            quote_size=final.get_int("quote_size"),
+            uncertainty_weight=final.get_float("uncertainty_weight"),
+            intensity_halflife=final.get_float("intensity_halflife"),
+            min_scale=final.get_float("min_scale"),
+            max_scale=final.get_float("max_scale"),
+            max_half_spread=final.get_int("max_half_spread"),
+            widen_per_tick=final.get_float("widen_per_tick"),
+            markout_horizon=final.get_int("markout_horizon"),
+            ewma_halflife=final.get_float("ewma_halflife"),
         ),
         calibration=CalibrationAgentConfig(
             min_distance=min_distance,

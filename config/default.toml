@@ -38,7 +38,7 @@ size = [5, 10]
 fee_per_lot = 0                 # ticks per lot
 
 [agent]
-type = "skew"                   # which agent runs by default (v1)
+type = "final"                  # which agent runs by default (v5); make run's list: Dockerfile CMD
 
 [agent.naive]
 half_spread = 2                 # ticks
@@ -82,6 +82,23 @@ intensity_halflife = 100.0      # steps of the fill-intensity EWMAs; 0 = off (rh
 min_scale = 0.25                # rho clipped to [min_scale, max_scale]; a choice, not tuned
 max_scale = 4.0                 # a choice, not tuned
 max_half_spread = 8             # ticks; a choice, not tuned (same as [agent.toxicity])
+
+# [agent.final] base_half_spread, skew_per_lot, quote_size, uncertainty_weight,
+# intensity_halflife and widen_per_tick from make tune, 2026-11-28 (seeded random search of 200
+# configs, dev seeds, worst-case Sharpe over no_informed/base/toxic;
+# docs/results/v5-final/dev-search.md). skew_per_lot and quote_size are at the edge of the grid.
+[agent.final]                   # v5: v4 + v3's toxicity widening, every knob tuned jointly
+base_half_spread = 5            # ticks
+skew_per_lot = 0.2              # ticks of reservation shift per lot
+quote_size = 8                  # lots
+uncertainty_weight = 0.0        # a
+intensity_halflife = 100.0      # steps; 0 = off
+min_scale = 0.25                # rho clip; a choice, not tuned (as v4)
+max_scale = 4.0                 # a choice, not tuned (as v4)
+max_half_spread = 8             # ticks; a choice, not tuned (as v3/v4)
+widen_per_tick = 1.0            # c, half-spread ticks per tick of toxicity
+markout_horizon = 5             # tau; fixed at v3's chosen value
+ewma_halflife = 50.0            # lots; a choice, not tuned (as v3)
 
 [agent.calibration]             # quotes at random distances so make calibrate can fit the fill rate
 distances = [1, 5]              # ticks from its centre (v1's skewed centre), uniform per side per step

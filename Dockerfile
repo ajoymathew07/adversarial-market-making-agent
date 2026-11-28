@@ -16,4 +16,6 @@ COPY config/ config/
 COPY src/ src/
 COPY tests/ tests/
 
-CMD ["python", "-m", "mm"]
+# make run: v1, v2, v2-tuned and v5 (the final agent) on held-out seeds in every scenario,
+# v1 as the baseline.
+CMD ["python", "-m", "mm", "--agents", "skew,kalman,kalman_tuned,final"]

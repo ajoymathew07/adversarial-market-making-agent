@@ -16,7 +16,8 @@ Requires Docker.
 make run
 ```
 
-This builds the image, evaluates the agent on the held-out seeds in every scenario, prints a
+This builds the image, evaluates v1 (`skew`, the baseline), v2 (`kalman`), v2-tuned
+(`kalman_tuned`) and the final agent v5 (`final`) on the held-out seeds in every scenario, prints a
 summary and writes `results/report.md`, `results/episodes.csv` and `results/plots/`. To run the tests:
 
 ```bash
