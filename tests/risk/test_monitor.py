@@ -73,3 +73,37 @@ def test_fill_for_unrecorded_order_is_detected():
 
 def test_violation_is_a_runtime_error():
     assert issubclass(InvariantViolation, RuntimeError)
+
+
+def test_tampered_cash_after_many_checked_steps_is_detected():
+    book, account, monitor = clean_state(position_limit=1000)
+    for _ in range(100):
+        ask_id = book.add_limit(AGENT, Side.SELL, 10001, 1)
+        monitor.record_order(ask_id, 1)
+        for fill in book.match_ioc("taker", Side.BUY, 10001, 1, "noise"):
+            account.apply_fill(fill, as_owner=AGENT)
+            monitor.record_fill(fill)
+        monitor.check(book, account)
+    account.cash += 1
+    with pytest.raises(InvariantViolation, match="reconcile"):
+        monitor.check(book, account)
+
+
+def test_overfill_on_an_order_checked_earlier_is_detected():
+    book, account, monitor = clean_state()
+    monitor.check(book, account)
+    monitor.check(book, account)
+    ask_id = account.fills[0][0].maker_order_id
+    monitor.record_fill(Fill("taker", AGENT, ask_id, Side.BUY, 10002, 4, "noise"))
+    with pytest.raises(InvariantViolation, match="more than its size"):
+        monitor.check(book, account)
+
+
+def test_repeated_checks_without_new_fills_do_not_double_count():
+    book, account, monitor = clean_state()
+    ask_id = account.fills[0][0].maker_order_id
+    # 2 of 5 lots filled; a double count on each check would pass 5 by the third check.
+    for _ in range(5):
+        monitor.check(book, account)
+    monitor.record_fill(Fill("taker", AGENT, ask_id, Side.BUY, 10002, 3, "noise"))
+    monitor.check(book, account)
