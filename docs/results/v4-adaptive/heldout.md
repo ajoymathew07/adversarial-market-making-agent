@@ -186,4 +186,12 @@ Mean [95% CI] over seeds. ✔: the per-seed difference from the column's baselin
 
 ## Interpretation
 
-TBD
+| Question | Answer |
+|---|---|
+| Does v4 beat the tuned control? | **Slightly, and not reliably.** Dev worst-case Sharpe 2.80 vs 2.64; held-out training worst case 2.87 vs 2.79 (not significant). On unseen scenarios: better in bursty_takers, heavy_tail_takers and realistic_mix (✔), worse in uniform_takers (✔). |
+| Does the online intensity ρ track the busy/calm regime? | **Weakly.** In bursty_takers ρ averages 0.83 in busy steps vs 0.71 in calm ones (the true rate ratio is 6); correlation 0.25. The 100-step half-life is too slow for busy spells averaging 20 steps. |
+| Where does the gain come from? | **Mostly a level correction.** ρ averages 0.6–0.9: the calibrated noise rate overpredicts fills at a 4-tick spread. The control with λ fixed at 0.6× scores 2.76 on dev, close to v4's 2.80. |
+| Does the uncertainty spread (a·√P) help? | **No.** √P stays near its steady state, so the term is almost constant; every a ≥ 1 loses. |
+| Is v4's fair value better in bursty markets? | **No.** RMSE 2.28 → 2.31 (bursty_takers), 2.42 → 2.44 (realistic_mix), not significant. |
+
+The hypothesis (track the regime and the filter's uncertainty) is not supported. What helps is correcting the calibrated noise rate, which was fitted with the calibration agent's quotes at 1–5 ticks and transfers imperfectly to a 4-tick spread.
