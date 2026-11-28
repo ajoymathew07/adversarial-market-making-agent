@@ -34,7 +34,8 @@ def apply_gate(
     4. position_clip: bid size is clipped to position_limit - position and ask size to
        position_limit + position, so even a complete fill keeps |position| <= limit.
        A side clipped to 0 is dropped.
-    A rejected side is returned with price None and size 0.
+    A rejected side is returned with price None and size 0. `fair_value` passes through
+    unchanged.
     """
     events: list[GateEvent] = []
     bid = _check_side(Side.BUY, quote.bid_price, quote.bid_size, last_trade_price, config, events)
@@ -54,6 +55,7 @@ def apply_gate(
         bid_size=bid[1] if bid else 0,
         ask_price=ask[0] if ask else None,
         ask_size=ask[1] if ask else 0,
+        fair_value=quote.fair_value,
     )
     return GateResult(accepted, events)
 

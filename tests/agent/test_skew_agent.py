@@ -20,6 +20,8 @@ def observation(position: int, last_trade_price: int = CENTRE) -> Observation:
         own_fills=(),
         last_step_trades=(),
         last_trade_price=last_trade_price,
+        posted_bid=None,
+        posted_ask=None,
     )
 
 
@@ -35,8 +37,8 @@ def test_flat_position_quotes_like_the_naive_agent():
 
 def test_long_moves_both_quotes_down_and_short_moves_them_up():
     agent = with_skew_per_lot(0.1)  # 30 lots long -> shift 3 ticks
-    assert agent.quote(observation(30)) == Quote(9995, 5, 9999, 5)
-    assert agent.quote(observation(-30)) == Quote(10001, 5, 10005, 5)
+    assert agent.quote(observation(30)) == Quote(9995, 5, 9999, 5, 10000.0)
+    assert agent.quote(observation(-30)) == Quote(10001, 5, 10005, 5, 10000.0)
 
 
 @pytest.mark.parametrize(
@@ -97,3 +99,9 @@ def test_default_skew_stays_inside_the_gate_price_band():
     )
     episode = run_episode(config, InventorySkewMarketMaker(config.agent.skew))
     assert not [e for e in episode.gate_events if e.event.rule == "price_band"]
+
+
+def test_fair_value_is_the_last_trade_price_not_the_skewed_centre():
+    quote = with_skew_per_lot(0.1).quote(observation(30, last_trade_price=10004))
+    assert quote.fair_value == 10004.0
+    assert quote.bid_price == 10004 - 3 - DEFAULT.half_spread

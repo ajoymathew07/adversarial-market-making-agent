@@ -5,6 +5,9 @@ PnL decomposition (exact, by summation by parts):
     spread capture = sum over fills of s * (V(t_fill) - price) * size
     inventory PnL  = sum_{t=0}^{T-1} q_t * (V(t+1) - V(t))
 where s = +1 for an agent buy, -1 for a sell, and q_t is the position after step t's fills.
+
+Fair-value error is in ticks: e_t = (agent's fair value at step t) - V(t); RMSE and bias are
+sqrt(mean e_t^2) and mean e_t over the episode's steps.
 """
 
 import math
@@ -33,6 +36,8 @@ class EpisodeMetrics:
     mean_abs_position: float
     max_abs_position: int
     pct_time_at_limit: float  # % of steps with |q| == position_limit
+    fair_value_rmse: float  # ticks
+    fair_value_bias: float  # ticks; > 0 means the agent's estimate sits above V
     fills: dict[TakerKind, int]
     lots: dict[TakerKind, int]
     # Size-weighted average markout per lot, keyed by (kind, horizon) in kind-then-horizon
@@ -53,6 +58,8 @@ class EpisodeMetrics:
             "mean_abs_position": self.mean_abs_position,
             "max_abs_position": self.max_abs_position,
             "pct_time_at_limit": self.pct_time_at_limit,
+            "fair_value_rmse": self.fair_value_rmse,
+            "fair_value_bias": self.fair_value_bias,
         }
         for kind in KINDS:
             row[f"fills_{kind}"] = self.fills[kind]
@@ -77,6 +84,7 @@ def episode_metrics(
     mtm = mark_to_market_path(result)
     lots_filled = sum(fill.size for fill in result.fills)
     lots_quoted = sum(step.bid_size + step.ask_size for step in result.steps)
+    errors = fair_value_errors(result)
     return EpisodeMetrics(
         final_pnl=result.final_pnl * tick_size,
         spread_capture=spread_capture(result.fills) * tick_size,
@@ -88,6 +96,8 @@ def episode_metrics(
         mean_abs_position=float(abs_positions.mean()),
         max_abs_position=int(abs_positions.max()),
         pct_time_at_limit=100.0 * float(np.mean(abs_positions == position_limit)),
+        fair_value_rmse=float(np.sqrt(np.mean(errors**2))),
+        fair_value_bias=float(errors.mean()),
         fills={kind: sum(1 for f in result.fills if f.taker_kind == kind) for kind in KINDS},
         lots={kind: sum(f.size for f in result.fills if f.taker_kind == kind) for kind in KINDS},
         markouts={
@@ -126,6 +136,11 @@ def markout(fills: list[FillRecord], path: tuple[float, ...], kind: TakerKind, h
         total += f.side.sign * (path[f.step + horizon] - f.price) * f.size
         lots += f.size
     return total / lots if lots else math.nan
+
+
+def fair_value_errors(result: EpisodeResult) -> NDArray[np.float64]:
+    """In ticks: the agent's fair value minus the true value V(t), one per step."""
+    return np.array([step.fair_value - step.true_value for step in result.steps])
 
 
 def mark_to_market_path(result: EpisodeResult) -> NDArray[np.float64]:

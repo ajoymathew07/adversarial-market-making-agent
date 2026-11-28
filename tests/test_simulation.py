@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from mm.agent import Observation, OwnFill, Quote, Trade
 from mm.config import SimConfig, load_config, scenario_names
 from mm.simulation import run_episode
+from mm.types import Side
 
 SHORT = 300
 
@@ -33,6 +34,8 @@ def test_observation_exposes_no_true_value_or_taker_kind():
         "own_fills",
         "last_step_trades",
         "last_trade_price",
+        "posted_bid",
+        "posted_ask",
     }
     assert {f.name for f in dataclasses.fields(OwnFill)} == {"side", "price", "size"}
     assert {f.name for f in dataclasses.fields(Trade)} == {"price", "size"}
@@ -64,7 +67,7 @@ def test_first_observation_centres_on_initial_value():
     class Recorder:
         def quote(self, obs: Observation) -> Quote:
             seen.append(obs)
-            return Quote(obs.last_trade_price - 2, 5, obs.last_trade_price + 2, 5)
+            return Quote(obs.last_trade_price - 2, 5, obs.last_trade_price + 2, 5, 0.0)
 
     run_episode(config(n_steps=50), agent=Recorder())
     assert seen[0].last_trade_price == load_config().instrument.initial_price_ticks
@@ -77,7 +80,7 @@ def test_observation_reports_previous_step_fills_from_agent_side():
     class Recorder:
         def quote(self, obs: Observation) -> Quote:
             seen.append(obs)
-            return Quote(obs.last_trade_price - 2, 5, obs.last_trade_price + 2, 5)
+            return Quote(obs.last_trade_price - 2, 5, obs.last_trade_price + 2, 5, 0.0)
 
     result = run_episode(config(n_steps=200), agent=Recorder())
     fill = result.fills[0]
@@ -86,10 +89,46 @@ def test_observation_reports_previous_step_fills_from_agent_side():
     assert Trade(fill.price, fill.size) in obs.last_step_trades
 
 
+def test_observation_reports_previous_step_posted_quotes_after_the_gate():
+    seen: list[Observation] = []
+
+    class Recorder:
+        def quote(self, obs: Observation) -> Quote:
+            seen.append(obs)
+            return Quote(obs.last_trade_price - 1, 5, obs.last_trade_price + 1, 5, 0.0)
+
+    cfg = config(n_steps=300)
+    cfg = replace(cfg, risk=replace(cfg.risk, position_limit=5))
+    result = run_episode(cfg, agent=Recorder())
+    assert (seen[0].posted_bid, seen[0].posted_ask) == (None, None)
+    for t in range(1, cfg.n_steps):
+        previous = result.steps[t - 1]
+        assert (seen[t].posted_bid, seen[t].posted_ask) == (previous.bid_price, previous.ask_price)
+    # At the limit the position clip drops a side; the next observation shows it as None.
+    drops = [
+        e
+        for e in result.gate_events
+        if e.event.detail.endswith("clipped to 0") and e.step < cfg.n_steps - 1
+    ]
+    assert drops
+    for entry in drops:
+        obs = seen[entry.step + 1]
+        assert (obs.posted_bid if entry.event.side is Side.BUY else obs.posted_ask) is None
+
+
+def test_step_record_logs_the_agents_fair_value():
+    class Reporter:
+        def quote(self, obs: Observation) -> Quote:
+            return Quote(None, 0, None, 0, fair_value=obs.step + 0.5)
+
+    result = run_episode(config(n_steps=10), agent=Reporter())
+    assert [step.fair_value for step in result.steps] == [t + 0.5 for t in range(10)]
+
+
 def test_gate_rejections_are_logged_and_never_reach_the_book():
     class Crosser:
         def quote(self, obs: Observation) -> Quote:
-            return Quote(obs.last_trade_price, 5, obs.last_trade_price, 5)
+            return Quote(obs.last_trade_price, 5, obs.last_trade_price, 5, 0.0)
 
     result = run_episode(config(n_steps=20), agent=Crosser())
     assert len(result.gate_events) == 40

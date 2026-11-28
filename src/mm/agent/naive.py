@@ -17,4 +17,5 @@ class NaiveMarketMaker:
             bid_size=size,
             ask_price=centre + half_spread,
             ask_size=size,
+            fair_value=float(centre),
         )

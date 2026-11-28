@@ -111,7 +111,7 @@ def test_market_draws_are_identical_across_agents(monkeypatch):
 
     class Silent:
         def quote(self, obs: Observation) -> Quote:
-            return Quote(None, 0, None, 0)
+            return Quote(None, 0, None, 0, 0.0)
 
     monkeypatch.setattr(mm.simulation, "generate_intents", recording)
     config = replace(load_config(scenario="toxic"), n_steps=200, seed=3)

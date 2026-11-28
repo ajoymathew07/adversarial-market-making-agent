@@ -21,6 +21,7 @@ class InventorySkewMarketMaker:
             bid_size=size,
             ask_price=reservation + half_spread,
             ask_size=size,
+            fair_value=float(obs.last_trade_price),
         )
 
 

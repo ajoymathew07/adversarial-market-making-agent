@@ -17,6 +17,8 @@ COMPARE_METRICS: tuple[tuple[str, str], ...] = (
     ("mean_abs_position", "Mean |q|"),
     ("pct_time_at_limit", "% time at limit"),
     ("markout_informed_10", "Informed markout/lot, t=10"),
+    ("fair_value_rmse", "Fair-value RMSE (ticks)"),
+    ("fair_value_bias", "Fair-value bias (ticks)"),
 )
 
 
