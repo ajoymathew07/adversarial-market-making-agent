@@ -38,3 +38,9 @@ flawed logic, a wrong assumption, or a subtle bug.
 - **What was wrong:** at the +50 limit the gate removes the bid and the skewed ask sits below fair value, so the only quote is capped: H = 0, the gain is 0, fair value freezes and the agent stays stuck at the limit (about 60% of the episode on a few seeds). The leaked "oracle" parameters happened to hide it; calibrated parameters exposed it.
 - **How it was caught:** calibration results showed a heavy fair-value-error tail on a handful of seeds; tracing one (held-out 1021) showed fv frozen at the limit.
 - **Fix:** treat e^(−k·distance) as an arrival intensity (the standard Avellaneda–Stoikov form), not a capped probability, so H > 0 whenever a side rests. A regression test forces the agent to the limit and asserts fair value keeps updating and the agent leaves the limit.
+
+### 2026-11-28: Pushed after a failing check again, hidden by a pipe
+- **What the AI produced:** while rebasing PR #14, the assistant ran `make verify | tail && git push`.
+- **What was wrong:** the pipe made `tail`'s exit code the one that counted, so the push ran although `make verify` failed. The failure was environmental (matplotlib missing from the local venv), and the pushed tree was byte-identical to one that had already passed CI, but the rule from the earlier entry was broken.
+- **How it was caught:** the failing mypy output printed right above the push result.
+- **Fix:** the venv was reinstalled from `requirements.txt` and `make verify` passed (321 tests). Checks are now run on their own and their exit code read before any push.
