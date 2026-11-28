@@ -6,7 +6,7 @@ A market-making agent that quotes both sides of a limit order book, earning the 
 uninformed flow while detecting and defending against informed (toxic) flow. The repo also contains
 the agent-based market simulator used to develop and evaluate it, since the brief provides no data.
 
-> Status: simulator, risk layer, evaluation harness and agents v0–v2 are in place, with design decisions in `docs/decisions/` and results in `docs/results/`.
+> Status: complete. Simulator, risk layer, evaluation harness, agents v0–v6 (v5 is the default) and a competing-maker mode. Design decisions are in `docs/decisions/`, results in `docs/results/` (held-out summary: `docs/results/summary.md`).
 
 ## Quick start
 
@@ -102,8 +102,14 @@ Selected with `[agent] type` in the config or `--agents a,b` on the CLI.
 | `naive` | v0 | Fixed 2-tick half-spread around the last trade price; no inventory awareness |
 | `skew` | v1 | Avellaneda–Stoikov reservation price: shift quotes against inventory (`skew_per_lot`, tuned on dev seeds) |
 | `kalman` | v2 | v1's skew around a Kalman-filter fair value driven by order-flow imbalance |
+| `kalman_tuned` | control | v2 with its half-spread tuned on dev seeds (2 → 4 ticks); the bar v3–v6 must beat |
+| `toxicity` | v3 | Widen the spread when the agent's own fills mark out badly. Negative result: best widening is 0 |
+| `adaptive` | v4 | Online flow intensity and an uncertainty term in the spread. Small gain, mostly a noise-rate level fix |
+| `final` | **v5 (default)** | All knobs tuned jointly for worst-case Sharpe; the gain comes from stronger inventory skew |
+| `competitive` | v6 | Narrow the spread when a competitor takes our volume share. Negative result: best undercut is 0 |
 | `calibration` | helper | Quotes at random distances so `make calibrate` can estimate `[agent.kalman]` from its own fills |
-| | v3–v5 | in progress |
+
+What each version tested and found: `docs/decisions/05`–`13`. Held-out summary: `docs/results/summary.md`.
 
 ### Scenarios
 
@@ -120,6 +126,12 @@ Defined under `[scenarios]` in `config/default.toml`, each as overrides of the b
 | `heavy_tail_sizes` | lognormal noise sizes, same mean |
 | `fat_tail_value` | Student-t value steps, same std |
 | `realistic_mix` | the last three together |
+| `vs_v1` | a competing maker (v1, 2-tick spread) in the same book |
+| `vs_tuned` | competing maker `kalman_tuned` (4 ticks) |
+| `vs_final` | competing maker `final` (self-play against v5) |
+| `vs_competitive` | competing maker `competitive` (self-play against v6) |
+
+A competing maker has its own account, order gate and invariant monitor; both see only public trades.
 
 ## Commands
 
@@ -139,6 +151,11 @@ Defined under `[scenarios]` in `config/default.toml`, each as overrides of the b
 | `make calibrate` | Estimate `[agent.kalman]` on base dev seeds and print it next to the true values |
 | `make sweep` | v1 `skew_per_lot` sweep on dev seeds; writes `docs/results/v1-skew/` |
 | `make v2-experiments` | v2 vs v1, gain sensitivity and robustness on dev seeds |
+| `make sweep-toxicity` / `make v3-experiments` | v3: dev sweep against the tuned-spread control / held-out evaluation |
+| `make sweep-adaptive` / `make v4-experiments` | v4: dev sweep / held-out evaluation |
+| `make tune` / `make v5-experiments` | v5: joint random search on dev seeds / held-out evaluation |
+| `make sweep-competitive` / `make v6-experiments` | v6: dev sweep with a competitor / held-out evaluation and `docs/results/summary.md` |
+| `make competition` | Our agents against each competing maker, held-out seeds |
 | `make stress-tolerance` | v0–v2 under different noise tolerance shapes, dev seeds |
 | `make stress-realistic` | v1 vs v2 on base and the realism scenarios, held-out seeds |
 | `make realism-data` | Download one day of Binance BTCUSDT aggTrades and verify its checksum |
