@@ -194,4 +194,12 @@ Mean [95% CI] over seeds. ✔: the per-seed difference from the column's baselin
 
 ## Interpretation
 
-TBD
+| Question | Answer |
+|---|---|
+| Does joint tuning beat the control? | **On Sharpe, yes, everywhere.** v5's Sharpe is significantly higher in all 9 scenarios, unseen ones included (base 3.23 → 4.61, realistic_mix 2.19 → 3.01), and its max drawdown roughly halves. |
+| At what cost? | **Lower PnL.** Final PnL is significantly lower in 6 of 9 scenarios (base 16.42 → 14.37). The strong inventory skew gives up some profit for much lower variance. Under a pure-PnL objective the control would win. |
+| What drives the gain? | **skew_per_lot (0.05 → 0.2).** The control with only that change scores 4.20 on dev against v5's 4.23. quote_size 8 helps a little; v4's intensity adds about 0.2; v3's widening and the uncertainty term add nothing (the c = 0 variant scored 4.27). |
+| Did the 200-config search overfit? | **No.** Worst-case Sharpe over the training scenarios is 4.23 on dev and 4.27 on held-out (control: 2.64 → 2.79). |
+| Anything left on the table? | skew_per_lot and quote_size sit at the edge of the grid, so the optimum may lie beyond it. |
+
+The final agent's edge over v1 comes from three sources, in order of size: a Kalman fair value instead of the last trade price (v2), a wider tuned spread, and much stronger inventory control. The adaptive mechanisms tested in v3 and v4 add little.
