@@ -86,4 +86,12 @@ Mean [95% CI] over seeds. ✔ on the agent's value: the per-seed difference from
 
 ## Interpretation
 
-TBD
+| Scenario | v1 Sharpe | v2 Sharpe | Reading |
+|---|---|---|---|
+| base | 0.18 | 1.10 ✔ | Reference. |
+| bursty_takers | 0.09 | 0.91 ✔ | v2's PnL edge holds, but its informed-markout advantage disappears and its fair value gains a small bias: bursts of noise flow are partly read as information. |
+| heavy_tail_sizes | −0.50 | 0.26 ✔ | Hardest single change for both: more full-size fills mean larger inventory swings (inventory PnL is the worst of the five). |
+| fat_tail_value | 0.47 | 1.29 ✔ | Fat-tailed steps don't hurt either agent here; informed takers already see the full future move whatever its shape. |
+| realistic_mix | −0.54 | 0.17 ✔ | v2 still beats v1, but its own PnL CI includes 0 and its fair-value error is no better than v1's. This is the weakest case and the main target for v4 (regime and uncertainty adaptation). |
+
+v2's improvement over v1 holds in every unseen scenario (Sharpe ✔ in all five), so it doesn't depend on Poisson arrivals, narrow sizes or Gaussian steps. What does degrade is v2's fair-value advantage when arrivals are bursty.
