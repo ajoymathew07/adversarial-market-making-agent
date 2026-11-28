@@ -1,11 +1,12 @@
 IMAGE := mm-agent
 PYTHON ?= python3
 
-.PHONY: build run determinism calibrate sweep v2-experiments sweep-toxicity v3-experiments sweep-adaptive v4-experiments stress-tolerance stress-realistic realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
+.PHONY: build run determinism calibrate sweep v2-experiments sweep-toxicity v3-experiments sweep-adaptive v4-experiments tune v5-experiments stress-tolerance stress-realistic realism-data realism test venv test-local lint typecheck coverage checks verify bench clean
 
 build:
 	docker build -t $(IMAGE) .
 
+# v1, v2, v2-tuned and v5 on held-out seeds, every scenario (agent list: the Dockerfile CMD).
 # Results (report.md, episodes.csv, plots/) land in ./results on the host.
 run: build
 	mkdir -p results
@@ -53,6 +54,16 @@ sweep-adaptive:
 # writes docs/results/v4-adaptive/heldout.md.
 v4-experiments:
 	PYTHONPATH=src .venv/bin/python scripts/v4_experiments.py
+
+# v5 (final) seeded random search over every knob on dev seeds, training scenarios only;
+# writes docs/results/v5-final/dev-search.md.
+tune:
+	PYTHONPATH=src .venv/bin/python scripts/tune_final.py
+
+# v1 | v2 | v2-tuned | v4 | v5 on every scenario, held-out seeds, run once after make tune;
+# writes docs/results/v5-final/heldout.md and docs/results/summary.md.
+v5-experiments:
+	PYTHONPATH=src .venv/bin/python scripts/v5_experiments.py
 
 # naive, skew and kalman under different noise-taker tolerance shapes, dev seeds only;
 # writes docs/results/stress-tolerance/dev.md.
