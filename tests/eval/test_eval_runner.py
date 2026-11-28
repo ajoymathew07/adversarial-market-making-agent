@@ -2,7 +2,7 @@ from dataclasses import replace
 
 import pytest
 
-from mm.config import DEFAULT_CONFIG_PATH, load_config
+from mm.config import DEFAULT_CONFIG_PATH, load_config, scenario_names
 from mm.eval.cli import main
 from mm.eval.plots import write_plots
 from mm.eval.report import file_digest, write_episodes_csv, write_report
@@ -58,7 +58,8 @@ def test_cli_prints_digest_of_written_csv(tmp_path, capsys):
 def test_cli_defaults_to_every_scenario_in_the_config(tmp_path, capsys):
     main(["--seeds", "dev", "--steps", "30", "--out", str(tmp_path)])
     header = capsys.readouterr().out.splitlines()[1]
-    assert header.split()[-3:] == ["no_informed", "base", "toxic"]
+    names = list(scenario_names())
+    assert header.split()[-len(names) :] == names
 
 
 def test_cli_reads_the_given_config_file(tmp_path, capsys):
